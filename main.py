@@ -119,6 +119,7 @@ def main():
                     physics_world.space_released = True
 
             if lander and getattr(physics_world, "space_released", False):
+                lander.is_thrusting = False
                 if keys[pygame.K_SPACE] or keys[pygame.K_UP]:
                     lander.thrust(dt)
 

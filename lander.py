@@ -1,6 +1,5 @@
 import pymunk
 import pygame
-from utils import to_pygame, WHITE
 
 
 class Lander:
@@ -41,7 +40,7 @@ class Lander:
         self.foot_l.elasticity = 0.0
         self.foot_l.friction = 1.0
 
-        self.foot_r = pymunk.Segment(self.body, (24, -50), (36, -50), radius=4) 
+        self.foot_r = pymunk.Segment(self.body, (24, -50), (36, -50), radius=4)
         self.foot_r.elasticity = 0.0
         self.foot_r.friction = 1.0
 
@@ -56,9 +55,11 @@ class Lander:
             shape.collision_type = 1  # COLLISION_LANDER
 
         self.space.add(self.body, *self.shapes)
+        self.is_thrusting = False
 
     def thrust(self, dt):
         if self.fuel > 0:
+            self.is_thrusting = True
             # Apply impulse in local Y direction
             force = (0, self.thrust_force)
             self.body.apply_impulse_at_local_point(force, (0, 0))
@@ -77,33 +78,50 @@ class Lander:
         self.body.angular_velocity *= self.damping_factor
 
     def draw(self, screen, height):
-        # Draw body
-        to_pygame(self.body.position, height)
-        # We need to rotate the points manually for drawing if we use simple pygame rects,
-        # but since we have a poly, we can get vertices in world coordinates
+        # Convert pymunk coordinates to pygame
+        def to_pygame(p):
+            return int(p.x), int(height - p.y)
 
-        # Draw main shape
-        points = []
-        for v in self.main_shape.get_vertices():
-            # v is local, need to rotate and translate
-            # Actually get_vertices returns local vertices.
-            # We can use body.local_to_world
-            p_world = self.body.local_to_world(v)
-            points.append(to_pygame(p_world, height))
-
-        pygame.draw.polygon(screen, WHITE, points, 2)
+        # Draw main body
+        p = [to_pygame(self.body.local_to_world(v)) for v in self.main_shape.get_vertices()]
+        pygame.draw.polygon(screen, (200, 200, 200), p)
+        pygame.draw.polygon(screen, (255, 255, 255), p, 2)
 
         # Draw legs
         for shape in [self.leg_l, self.leg_r, self.foot_l, self.foot_r]:
-            p1 = to_pygame(self.body.local_to_world(shape.a), height)
-            p2 = to_pygame(self.body.local_to_world(shape.b), height)
-            pygame.draw.line(screen, WHITE, p1, p2, 4)
+            p1 = to_pygame(self.body.local_to_world(shape.a))
+            p2 = to_pygame(self.body.local_to_world(shape.b))
+            pygame.draw.line(screen, (255, 255, 255), p1, p2, 2)
+
+        # Draw thrust flame
+        if self.is_thrusting and self.fuel > 0:
+            import random
+
+            # Flame point relative to body: bottom center is (0, -30)
+            # Flame goes down from there.
+            # Triangle: (-10, -30), (10, -30), (0, -30 - length)
+            flame_len = random.uniform(20, 40)
+
+            f1 = self.body.local_to_world((-8, -30))
+            f2 = self.body.local_to_world((8, -30))
+            f3 = self.body.local_to_world((0, -30 - flame_len))
+
+            points = [to_pygame(f1), to_pygame(f2), to_pygame(f3)]
+            pygame.draw.polygon(screen, (255, 165, 0), points)  # Orange
+
+            # Inner flame
+            flame_len_inner = flame_len * 0.6
+            f1_i = self.body.local_to_world((-4, -30))
+            f2_i = self.body.local_to_world((4, -30))
+            f3_i = self.body.local_to_world((0, -30 - flame_len_inner))
+
+            points_i = [to_pygame(f1_i), to_pygame(f2_i), to_pygame(f3_i)]
+            pygame.draw.polygon(screen, (255, 255, 0), points_i)  # Yellow
 
     def get_velocity(self):
         return self.body.velocity
 
     def get_altitude(self):
-        # Return the Y position of the lowest point (feet)
         # Feet are at local y = -50
         # Transform (0, -50) to world
         feet_pos = self.body.local_to_world((0, -50))
