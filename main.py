@@ -4,7 +4,7 @@ from physics import PhysicsWorld
 from game_objects import Lander, Terrain
 from ui import HUD, Menu
 
-WIDTH, HEIGHT = 800, 600
+WIDTH, HEIGHT = 1920, 1080
 FPS = 60
 
 # Assuming these are defined elsewhere or need to be defined for the snippet to be complete
@@ -94,7 +94,7 @@ def main():
                 # Let's make it dynamic based on gravity
                 base_fuel = 500.0 * (menu.gravity_val / 100.0)
                 
-                lander = Lander(physics_world.space, (100, 500))
+                lander = Lander(physics_world.space, (WIDTH // 2, HEIGHT - 100))
                 lander.fuel = base_fuel
             
             screen.fill((0, 0, 0)) # Clear screen for menu
@@ -103,7 +103,13 @@ def main():
         elif state == "GAME":
             # Input
             keys = pygame.key.get_pressed()
-            if lander:
+            
+            # Prevent thrust if space is still held from menu
+            if not hasattr(physics_world, 'space_released'):
+                if not keys[pygame.K_SPACE]:
+                    physics_world.space_released = True
+            
+            if lander and getattr(physics_world, 'space_released', False):
                 if keys[pygame.K_SPACE]:
                     lander.thrust(dt)
                 
@@ -136,7 +142,7 @@ def main():
                 # Calculate fuel again? Or keep remaining? Spec doesn't say.
                 # Usually new level = new fuel.
                 base_fuel = 500.0 * (menu.gravity_val / 100.0)
-                lander = Lander(physics_world.space, (100, 500))
+                lander = Lander(physics_world.space, (WIDTH // 2, HEIGHT - 100))
                 lander.fuel = base_fuel
             
             # Render

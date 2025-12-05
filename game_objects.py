@@ -13,27 +13,27 @@ class Lander:
         
         # Shapes
         # Main body
-        self.main_shape = pymunk.Poly.create_box(self.body, (20, 30))
+        self.main_shape = pymunk.Poly.create_box(self.body, (40, 60))
         self.main_shape.elasticity = 0.0
         self.main_shape.friction = 0.5
         
         # Legs (simple lines or small boxes)
         # Left leg
-        self.leg_l = pymunk.Segment(self.body, (-10, -15), (-15, -25), 2)
+        self.leg_l = pymunk.Segment(self.body, (-20, -30), (-30, -50), 4)
         self.leg_l.elasticity = 0.0
         self.leg_l.friction = 1.0
         
         # Right leg
-        self.leg_r = pymunk.Segment(self.body, (10, -15), (15, -25), 2)
+        self.leg_r = pymunk.Segment(self.body, (20, -30), (30, -50), 4)
         self.leg_r.elasticity = 0.0
         self.leg_r.friction = 1.0
         
         # Footpads
-        self.foot_l = pymunk.Segment(self.body, (-18, -25), (-12, -25), 2)
+        self.foot_l = pymunk.Segment(self.body, (-36, -50), (-24, -50), 4)
         self.foot_l.elasticity = 0.0
         self.foot_l.friction = 1.0
         
-        self.foot_r = pymunk.Segment(self.body, (12, -25), (18, -25), 2)
+        self.foot_r = pymunk.Segment(self.body, (24, -50), (36, -50), 4)
         self.foot_r.elasticity = 0.0
         self.foot_r.friction = 1.0
         
@@ -46,7 +46,7 @@ class Lander:
     def thrust(self, dt):
         if self.fuel > 0:
             # Apply impulse in local Y direction
-            force = (0, 300) # Adjust force magnitude
+            force = (0, 150) # Reduced from 300
             self.body.apply_impulse_at_local_point(force, (0, 0))
             self.fuel -= 10.0 * dt
             return True
@@ -54,8 +54,8 @@ class Lander:
         
     def rotate(self, direction):
         # Apply torque
-        torque = 2000 * direction
-        self.body.apply_force_at_local_point((torque, 0), (0, 10)) # Apply sideways force at top? No, torque is better but Pymunk uses torque on body
+        torque = 4000 * direction # Increased torque for larger body
+        self.body.apply_force_at_local_point((torque, 0), (0, 20)) 
         self.body.torque = torque
         
     def stop_rotation(self):
@@ -76,13 +76,14 @@ class Lander:
             # We can use body.local_to_world
             p_world = self.body.local_to_world(v)
             points.append(to_pygame(p_world, height))
+            
         pygame.draw.polygon(screen, WHITE, points, 2)
         
         # Draw legs
         for shape in [self.leg_l, self.leg_r, self.foot_l, self.foot_r]:
             p1 = to_pygame(self.body.local_to_world(shape.a), height)
             p2 = to_pygame(self.body.local_to_world(shape.b), height)
-            pygame.draw.line(screen, WHITE, p1, p2, 2)
+            pygame.draw.line(screen, WHITE, p1, p2, 4)
             
     def get_velocity(self):
         return self.body.velocity
