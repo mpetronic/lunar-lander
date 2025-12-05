@@ -3,7 +3,7 @@ import pymunk
 class PhysicsWorld:
     def __init__(self):
         self.space = pymunk.Space()
-        self.space.gravity = (0.0, -100.0)  # Reduced gravity for better playability initially
+        self.space.gravity = (0.0, -40.0)  # Reduced gravity for better playability initially
         
         self.COLLISION_LANDER = 1
         self.COLLISION_TERRAIN = 2
@@ -38,9 +38,9 @@ class PhysicsWorld:
         angle = body.angle
         
         # Limits
-        MAX_VX = 10.0 
-        MAX_VY = -5.0 # Downward velocity is negative, so we check if vy >= -5.0 (i.e. closer to 0)
-        MAX_ANGLE = 0.2 # radians
+        MAX_VX = 50.0 
+        MAX_VY = -50.0 # Downward velocity is negative, so we check if vy >= -5.0 (i.e. closer to 0)
+        MAX_ANGLE = 0.5 # radians
         
         # Check if terrain is pad
         is_pad = getattr(terrain_shape, 'is_pad', False)
