@@ -77,34 +77,40 @@ class HUD:
 
 class Menu:
     def __init__(self):
-        self.font = pygame.font.SysFont("Arial", 24)
-        self.title_font = pygame.font.SysFont("Arial", 48)
-        self.gravity_val = 50.0
+        self.font_title = pygame.font.SysFont("Arial", 60)
+        self.font_option = pygame.font.SysFont("Arial", 30)
+        self.gravity_val = 100  # Percent
+        self.difficulty_val = 1  # Level 1-5
 
     def draw(self, screen):
         screen.fill((0, 0, 0))
 
-        title = self.title_font.render("LUNAR LANDER", True, WHITE)
-        screen.blit(title, (screen.get_width() // 2 - title.get_width() // 2, 100))
+        title = self.font_title.render("LUNAR LANDER", True, WHITE)
+        screen.blit(title, (screen.get_width() // 2 - title.get_width() // 2, 200))
 
-        start_text = self.font.render("Press SPACE to Start", True, WHITE)
-        screen.blit(start_text, (screen.get_width() // 2 - start_text.get_width() // 2, 300))
+        start_text = self.font_option.render("Press SPACE to Start", True, GREEN)
+        screen.blit(start_text, (screen.get_width() // 2 - start_text.get_width() // 2, 400))
 
-        grav_text = self.font.render(
-            f"Gravity: {self.gravity_val:.0f} (Left/Right to adjust)", True, WHITE
-        )
-        screen.blit(grav_text, (screen.get_width() // 2 - grav_text.get_width() // 2, 350))
+        grav_text = self.font_option.render(f"< Gravity: {self.gravity_val}% >", True, WHITE)
+        screen.blit(grav_text, (screen.get_width() // 2 - grav_text.get_width() // 2, 500))
+
+        diff_text = self.font_option.render(f"^ Difficulty: {self.difficulty_val} v", True, WHITE)
+        screen.blit(diff_text, (screen.get_width() // 2 - diff_text.get_width() // 2, 550))
 
     def handle_input(self, events):
         for event in events:
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_LEFT:
+                if event.key == pygame.K_SPACE:
+                    return "GAME"
+                elif event.key == pygame.K_LEFT:
                     self.gravity_val = max(10, self.gravity_val - 10)
                 elif event.key == pygame.K_RIGHT:
-                    self.gravity_val = min(500, self.gravity_val + 10)
-                elif event.key == pygame.K_SPACE:
-                    return "START"
-        return None
+                    self.gravity_val = min(200, self.gravity_val + 10)
+                elif event.key == pygame.K_UP:
+                    self.difficulty_val = min(5, self.difficulty_val + 1)
+                elif event.key == pygame.K_DOWN:
+                    self.difficulty_val = max(1, self.difficulty_val - 1)
+        return "MENU"
 
 
 class GameOverMenu:

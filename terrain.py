@@ -4,10 +4,11 @@ from utils import to_pygame, GRAY
 
 
 class Terrain:
-    def __init__(self, space, width, height):
+    def __init__(self, space, width, height, difficulty=1):
         self.space = space
         self.width = width
         self.height = height
+        self.difficulty = max(1, min(5, difficulty))
         self.lines = []
         self.generate()
 
@@ -16,7 +17,7 @@ class Terrain:
         import json
         import os
 
-        TERRAIN_FILE = "terrain_data.json"
+        TERRAIN_FILE = f"terrain_level_{self.difficulty}.json"
 
         terrain_data = []  # List of {'x': float, 'y': float, 'isPad': bool}
 
@@ -30,7 +31,7 @@ class Terrain:
                     if isinstance(data, list) and len(data) > 0 and "isPad" in data[0]:
                         terrain_data = data
                         should_load = True
-                        print("Loaded terrain from file (new format).")
+                        print(f"Loaded terrain from {TERRAIN_FILE}.")
                     elif "points" in data:
                         # Old format, force regen
                         print("Old terrain format detected. Regenerating...")
@@ -38,7 +39,7 @@ class Terrain:
                 print(f"Failed to load terrain: {e}")
 
         if not should_load:
-            print("Generating new terrain with updated constraints...")
+            print(f"Generating new terrain for level {self.difficulty}...")
 
             # Constraints
             PAD_WIDTH = 120
@@ -47,6 +48,17 @@ class Terrain:
             PAD_Y_MIN = 50
             PAD_Y_MAX = self.height * 0.25
             MIN_SEGMENTS_BETWEEN = 30
+
+            # Difficulty settings
+            # Level 1: 10% height variation
+            # Level 5: 50% height variation
+            # We apply this to the max change per segment or total range?
+            # User said "use up to 10% of screen height in variation of segment height"
+            # This implies the noise/slope can be larger.
+
+            variation_pct = 0.1 * self.difficulty
+            max_variation = self.height * variation_pct
+            # We'll use this to scale the noise/slope
 
             # 1. Generate Pad Locations
             pads = []  # List of (x_start, y)
@@ -76,15 +88,25 @@ class Terrain:
             # 2. Generate Terrain Points
 
             def generate_rough_segment(p1, p2, num_segments):
-                # Generates points BETWEEN p1 and p2 (exclusive of p1, inclusive of p2?)
-                # We want to append points to the list.
-                # p1 is the last point added.
-                # We add num_segments points.
-                # The last point added should be p2.
-
                 pts = []
                 dx = (p2[0] - p1[0]) / num_segments
                 current_y = p1[1]
+
+                # Scale noise based on difficulty
+                # User requirement: Level 1 = 10% height variation, Level 5 = 50% height variation.
+                # This variation applies to segment height differences.
+                # max_variation is the total allowed variation, but per segment we should scale it.
+                # Let's say the max random jump per segment is a fraction of this.
+                # If we just use max_variation directly as the range, it might be too chaotic.
+                # But "variation of segment height" implies the delta y.
+
+                # Let's use max_variation as the bounds for the noise.
+                # But since noise is added to slope, we should be careful.
+                # Let's try setting noise_range to a fraction of max_variation, e.g., 1/3.
+                # For Level 1 (90px), range is +/- 30.
+                # For Level 5 (450px), range is +/- 150.
+
+                noise_range = max_variation * 0.3
 
                 for i in range(1, num_segments):
                     target_x = p1[0] + i * dx
@@ -92,17 +114,20 @@ class Terrain:
                     remaining_steps = num_segments - i + 1
                     slope_needed = (p2[1] - current_y) / remaining_steps
 
-                    noise = random.uniform(-15, 15)
+                    noise = random.uniform(-noise_range, noise_range)
                     next_y = current_y + slope_needed + noise
-                    next_y = max(20, min(next_y, self.height * 0.6))
 
-                    # These are NOT pads
+                    # Clamp y to keep it somewhat reasonable, but allow higher peaks with higher difficulty
+                    # Level 1: 60% height max
+                    # Level 5: 90% height max?
+                    max_h = self.height * (0.5 + 0.1 * self.difficulty)
+                    next_y = max(20, min(next_y, max_h))
+
                     pts.append({"x": target_x, "y": next_y, "isPad": False})
                     current_y = next_y
 
                 return pts
 
-            # Start point
             start_y = random.uniform(self.height * 0.1, self.height * 0.4)
             current_point = (0, start_y)
             terrain_data.append({"x": 0, "y": start_y, "isPad": False})

@@ -61,7 +61,7 @@ def main():
 
         if state == "MENU":
             action = menu.handle_input(events)
-            if action == "START":
+            if action == "GAME":
                 state = "GAME"
                 physics_world.set_gravity(menu.gravity_val)
                 # Reset game
@@ -86,7 +86,7 @@ def main():
                 # Re-init world
                 physics_world = PhysicsWorld()
                 physics_world.set_gravity(menu.gravity_val)
-                terrain = Terrain(physics_world.space, WIDTH, HEIGHT)
+                terrain = Terrain(physics_world.space, WIDTH, HEIGHT, menu.difficulty_val)
 
                 # Calculate fuel
                 # Simple algorithm: Distance to furthest pad * gravity factor
@@ -239,11 +239,13 @@ def main():
             action = game_over_menu.handle_input(events)
             if action == "RESTART":
                 state = "GAME"
-                # Reset
+                # Reset game
                 physics_world = PhysicsWorld()
-                physics_world.set_gravity(menu.gravity_val)
-                terrain = Terrain(physics_world.space, WIDTH, HEIGHT)
-                base_fuel = 500.0 * (menu.gravity_val / 100.0)
+                terrain = Terrain(physics_world.space, WIDTH, HEIGHT, menu.difficulty_val)
+
+                # Gravity
+                # Gravity
+                physics_world.space.gravity = (0.0, 1.62 * (menu.gravity_val / 100.0))
                 lander = Lander(physics_world.space, (WIDTH // 2, HEIGHT - 100))
                 lander.fuel = base_fuel
 
