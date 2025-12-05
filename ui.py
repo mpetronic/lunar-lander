@@ -94,3 +94,30 @@ class Menu:
                 elif event.key == pygame.K_SPACE:
                     return "START"
         return None
+
+class GameOverMenu:
+    def __init__(self):
+        self.font = pygame.font.SysFont("Arial", 36)
+        self.small_font = pygame.font.SysFont("Arial", 24)
+        
+    def draw(self, screen, result_text):
+        # Draw semi-transparent background?
+        # Just draw text over game
+        
+        text = self.font.render(result_text, True, WHITE)
+        screen.blit(text, (screen.get_width()//2 - text.get_width()//2, screen.get_height()//2 - 50))
+        
+        restart_text = self.small_font.render("Press SPACE to Play Again", True, WHITE)
+        screen.blit(restart_text, (screen.get_width()//2 - restart_text.get_width()//2, screen.get_height()//2 + 20))
+        
+        menu_text = self.small_font.render("Press ESC for Menu", True, WHITE)
+        screen.blit(menu_text, (screen.get_width()//2 - menu_text.get_width()//2, screen.get_height()//2 + 60))
+
+    def handle_input(self, events):
+        for event in events:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    return "RESTART"
+                elif event.key == pygame.K_ESCAPE:
+                    return "MENU"
+        return None

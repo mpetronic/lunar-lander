@@ -2,7 +2,7 @@ import pygame
 import sys
 from physics import PhysicsWorld
 from game_objects import Lander, Terrain
-from ui import HUD, Menu
+from ui import HUD, Menu, GameOverMenu
 
 WIDTH, HEIGHT = 1920, 1080
 FPS = 60
@@ -39,8 +39,10 @@ def main():
     lander = Lander(physics_world.space, (100, 500))
     hud = HUD()
     menu = Menu()
+    game_over_menu = GameOverMenu()
     
-    state = "MENU" # MENU, GAME
+    state = "MENU" # MENU, GAME, CRASH_ANIMATION, GAME_OVER
+    crash_timer = 0.0
     
     running = True
     while running:
@@ -134,16 +136,15 @@ def main():
                 lander.explode()
                 physics_world.crashed = False
                 lander = None # Disable control
+                state = "CRASH_ANIMATION"
+                crash_timer = 2.0
+                result_text = "CRASHED!"
                 
             elif physics_world.landed:
                 print("Level Complete!")
                 physics_world.landed = False
-                # Reset
-                # Calculate fuel again? Or keep remaining? Spec doesn't say.
-                # Usually new level = new fuel.
-                base_fuel = 500.0 * (menu.gravity_val / 100.0)
-                lander = Lander(physics_world.space, (WIDTH // 2, HEIGHT - 100))
-                lander.fuel = base_fuel
+                state = "GAME_OVER"
+                result_text = "SUCCESSFUL LANDING!"
             
             # Render
             screen.fill((0, 0, 0))
@@ -154,6 +155,7 @@ def main():
                 
                 # HUD
                 vel = lander.get_velocity()
+                # Ensure we pass the current fuel value
                 hud.draw(screen, vel, lander.fuel)
             else:
                 # Draw debris
@@ -166,9 +168,66 @@ def main():
                                     p_world = body.local_to_world(v)
                                     points.append(to_pygame(p_world, HEIGHT))
                                 pygame.draw.polygon(screen, WHITE, points, 2)
+
+        elif state == "CRASH_ANIMATION":
+            # Step physics to animate debris
+            physics_world.step(dt)
+            crash_timer -= dt
             
-            # Show Game Over text
-            pass
+            if crash_timer <= 0:
+                state = "GAME_OVER"
+            
+            # Render
+            screen.fill((0, 0, 0))
+            terrain.draw(screen, HEIGHT)
+            
+            # Draw debris
+            for body in physics_world.space.bodies:
+                if body.body_type == pymunk.Body.DYNAMIC:
+                    for shape in body.shapes:
+                        if isinstance(shape, pymunk.Poly):
+                            points = []
+                            for v in shape.get_vertices():
+                                p_world = body.local_to_world(v)
+                                points.append(to_pygame(p_world, HEIGHT))
+                            pygame.draw.polygon(screen, WHITE, points, 2)
+                                
+        elif state == "GAME_OVER":
+            # Render game background (frozen)
+            # We need to render the game objects but not step physics
+            screen.fill((0, 0, 0))
+            terrain.draw(screen, HEIGHT)
+            
+            if lander:
+                lander.draw(screen, HEIGHT)
+            else:
+                 # Draw debris
+                for body in physics_world.space.bodies:
+                    if body.body_type == pymunk.Body.DYNAMIC:
+                        for shape in body.shapes:
+                            if isinstance(shape, pymunk.Poly):
+                                points = []
+                                for v in shape.get_vertices():
+                                    p_world = body.local_to_world(v)
+                                    points.append(to_pygame(p_world, HEIGHT))
+                                pygame.draw.polygon(screen, WHITE, points, 2)
+                                
+            # Draw Game Over Menu
+            game_over_menu.draw(screen, result_text)
+            
+            action = game_over_menu.handle_input(events)
+            if action == "RESTART":
+                state = "GAME"
+                # Reset
+                physics_world = PhysicsWorld()
+                physics_world.set_gravity(menu.gravity_val)
+                terrain = Terrain(physics_world.space, WIDTH, HEIGHT)
+                base_fuel = 500.0 * (menu.gravity_val / 100.0)
+                lander = Lander(physics_world.space, (WIDTH // 2, HEIGHT - 100))
+                lander.fuel = base_fuel
+                
+            elif action == "MENU":
+                state = "MENU"
         
         pygame.display.flip()
         clock.tick(FPS)

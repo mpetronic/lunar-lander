@@ -130,67 +130,85 @@ class Terrain:
         
     def generate(self):
         import random
+        import json
+        import os
         
-        # Terrain parameters
-        num_points = 100
-        segment_width = self.width / (num_points - 1)
+        TERRAIN_FILE = "terrain_data.json"
+        
         points = []
-        
-        # Landing pads (start_index, length)
-        # We want 3 pads. Let's place them somewhat randomly but ensuring they don't overlap too close
-        pad_width_indices = 5 # roughly 5 segments wide
         pad_indices = []
         
-        # Simple logic to place 3 pads
-        attempts = 0
-        while len(pad_indices) < 3 and attempts < 100:
-            idx = random.randint(10, num_points - 10 - pad_width_indices)
-            valid = True
-            for existing_idx in pad_indices:
-                if abs(idx - existing_idx) < 15: # Minimum distance between pads
-                    valid = False
-                    break
-            if valid:
-                pad_indices.append(idx)
-            attempts += 1
+        # Check if we should load
+        if os.path.exists(TERRAIN_FILE):
+            print("Loading terrain from file...")
+            with open(TERRAIN_FILE, 'r') as f:
+                data = json.load(f)
+                points = data['points']
+                # Convert lists back to tuples if needed, though pymunk accepts lists
+                # But we need to handle pad indices if we want to know where pads are?
+                # Actually we can just infer pads from flat spots or save them.
+                # Let's save them too if needed, but the loop below handles segment creation.
+                # Wait, the loop below iterates `points`.
+        else:
+            print("Generating new terrain...")
+            # Terrain parameters
+            num_points = 100
+            segment_width = self.width / (num_points - 1)
             
-        pad_indices.sort()
-        
-        # Generate heights
-        current_height = self.height / 4
-        
-        for i in range(num_points):
-            # Check if we are in a pad
-            in_pad = False
-            pad_height = 0
+            # Landing pads (start_index, length)
+            # We want 3 pads. Let's place them somewhat randomly but ensuring they don't overlap too close
+            pad_width_indices = 5 # roughly 5 segments wide
             
+            # Simple logic to place 3 pads
+            attempts = 0
+            while len(pad_indices) < 3 and attempts < 100:
+                idx = random.randint(10, num_points - 10 - pad_width_indices)
+                valid = True
+                for existing_idx in pad_indices:
+                    if abs(idx - existing_idx) < 15: # Minimum distance between pads
+                        valid = False
+                        break
+                if valid:
+                    pad_indices.append(idx)
+                attempts += 1
+                
+            pad_indices.sort()
+            
+            # Generate heights
+            current_height = self.height / 4
+            
+            for i in range(num_points):
+                # Check if we are in a pad
+                in_pad = False
+                
+                for pid in pad_indices:
+                    if pid <= i < pid + pad_width_indices:
+                        in_pad = True
+                        break
+                
+                if in_pad:
+                    # Keep height constant
+                    pass
+                else:
+                    # Random variation
+                    change = random.uniform(-20, 20)
+                    current_height += change
+                    # Clamp height
+                    current_height = max(50, min(current_height, self.height / 2))
+                
+                points.append((i * segment_width, current_height))
+                
+            # Fix pad heights (make them flat)
             for pid in pad_indices:
-                if pid <= i < pid + pad_width_indices:
-                    in_pad = True
-                    # If it's the start of the pad, set the height for the whole pad
-                    if i == pid:
-                        # Flatten
-                        pass 
-                    break
+                # Get height at start of pad
+                h = points[pid][1]
+                for k in range(pad_width_indices):
+                    points[pid + k] = (points[pid + k][0], h)
             
-            if in_pad:
-                # Keep height constant
-                pass
-            else:
-                # Random variation
-                change = random.uniform(-20, 20)
-                current_height += change
-                # Clamp height
-                current_height = max(50, min(current_height, self.height / 2))
-            
-            points.append((i * segment_width, current_height))
-            
-        # Fix pad heights (make them flat)
-        for pid in pad_indices:
-            # Get height at start of pad
-            h = points[pid][1]
-            for k in range(pad_width_indices):
-                points[pid + k] = (points[pid + k][0], h)
+            # Save to file
+            with open(TERRAIN_FILE, 'w') as f:
+                json.dump({'points': points}, f)
+                print(f"Terrain saved to {TERRAIN_FILE}")
                 
         # Create Pymunk segments
         for i in range(len(points) - 1):
@@ -202,11 +220,6 @@ class Terrain:
             segment.collision_type = 2 # COLLISION_TERRAIN
             
             # Check if this segment is part of a pad
-            # We know pads are flat, so p1.y == p2.y
-            # And we can check if it was generated as a pad
-            # But simpler: we know the indices.
-            # Let's just check if it's flat? No, flat areas could exist naturally (unlikely with random float)
-            # Let's use the pad_indices logic again or just check slope
             if p1[1] == p2[1]:
                 segment.is_pad = True
             else:
@@ -219,4 +232,9 @@ class Terrain:
         for line in self.lines:
             p1 = to_pygame(line.a, height)
             p2 = to_pygame(line.b, height)
-            pygame.draw.line(screen, WHITE, p1, p2, 2)
+            
+            if getattr(line, 'is_pad', False):
+                # Draw thick pad
+                pygame.draw.line(screen, (0, 255, 0), p1, p2, 10) # Green thick line
+            else:
+                pygame.draw.line(screen, WHITE, p1, p2, 2)

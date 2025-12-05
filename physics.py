@@ -38,23 +38,49 @@ class PhysicsWorld:
         angle = body.angle
         
         # Limits
-        MAX_VX = 20.0 # Relaxed for testing, spec says 3
-        MAX_VY = -40.0 # Relaxed for testing, spec says 5 (downwards)
-        MAX_ANGLE = 0.2 # radians, roughly 11 degrees
+        MAX_VX = 10.0 
+        MAX_VY = -5.0 # Downward velocity is negative, so we check if vy >= -5.0 (i.e. closer to 0)
+        MAX_ANGLE = 0.2 # radians
         
         # Check if terrain is pad
         is_pad = getattr(terrain_shape, 'is_pad', False)
         
         # Logic
-        safe_velocity = abs(vx) <= MAX_VX and vy >= MAX_VY # vy is negative when falling, so must be greater than (less negative) than limit
+        # Note: Pymunk y-axis is up. Gravity is down (-y).
+        # Falling velocity is negative.
+        # "Exceeds 5 m/s" means abs(vy) > 5.
+        # So safe if abs(vy) <= 5.
+        safe_vertical = abs(vy) <= abs(MAX_VY)
+        safe_horizontal = abs(vx) <= MAX_VX
         safe_angle = abs(angle) <= MAX_ANGLE
         
-        if is_pad and safe_velocity and safe_angle:
+        safe_position = False
+        if is_pad:
+            # Check if lander is fully within pad bounds
+            # Pad is a segment from a to b
+            pad_x1 = min(terrain_shape.a.x, terrain_shape.b.x)
+            pad_x2 = max(terrain_shape.a.x, terrain_shape.b.x)
+            
+            # Lander width check
+            # Lander feet are at +/- 36 from center (approx)
+            # Let's use a slightly wider margin to be safe or exact?
+            # User said "both lander landing legs".
+            # Left foot outer edge is roughly -36, Right is +36.
+            lander_x = body.position.x
+            lander_left = lander_x - 36
+            lander_right = lander_x + 36
+            
+            if lander_left >= pad_x1 and lander_right <= pad_x2:
+                safe_position = True
+            else:
+                print(f"Missed pad bounds: Pad({pad_x1:.1f}, {pad_x2:.1f}) Lander({lander_left:.1f}, {lander_right:.1f})")
+        
+        if is_pad and safe_vertical and safe_horizontal and safe_angle and safe_position:
             self.landed = True
             print("LANDED SAFE!")
         else:
             self.crashed = True
-            print(f"CRASHED! vx={vx:.1f}, vy={vy:.1f}, angle={angle:.2f}, pad={is_pad}")
+            print(f"CRASHED! vx={vx:.1f}, vy={vy:.1f}, angle={angle:.2f}, pad={is_pad}, pos={safe_position}")
             
         return True
         
