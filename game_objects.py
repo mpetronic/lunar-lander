@@ -6,6 +6,9 @@ class Lander:
     def __init__(self, space, pos):
         self.space = space
         self.fuel = 100.0
+
+        self.thrust_force = 5.0
+        self.torque_force = 100.0
         
         # Create body
         self.body = pymunk.Body(mass=1, moment=10)
@@ -46,15 +49,15 @@ class Lander:
     def thrust(self, dt):
         if self.fuel > 0:
             # Apply impulse in local Y direction
-            force = (0, 150) # Reduced from 300
+            force = (0, self.thrust_force)
             self.body.apply_impulse_at_local_point(force, (0, 0))
-            self.fuel -= 10.0 * dt
+            self.fuel -= self.thrust_force * dt
             return True
         return False
         
     def rotate(self, direction):
         # Apply torque
-        torque = 4000 * direction # Increased torque for larger body
+        torque = self.torque_force * direction # Increased torque for larger body
         self.body.apply_force_at_local_point((torque, 0), (0, 20)) 
         self.body.torque = torque
         
