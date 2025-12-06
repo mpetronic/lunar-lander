@@ -3,7 +3,7 @@ import pymunk
 class PhysicsWorld:
     def __init__(self):
         self.space = pymunk.Space()
-        self.space.gravity = (0.0, -40.0)  # Reduced gravity for better playability initially
+        self.space.gravity = (0.0, -1.625)  # Reduced gravity for better playability initially
         
         self.COLLISION_LANDER = 1
         self.COLLISION_TERRAIN = 2

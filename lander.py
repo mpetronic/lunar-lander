@@ -29,18 +29,23 @@ explosion_palette = [
 
 
 class Lander:
-    def __init__(self, space, pos):
+    def __init__(self, space, pos, gravity):
         self.space = space
-        self.fuel = 100.0
-        self.max_fuel = 100.0
-
-        self.thrust_force = 1.2
-        self.torque_force = 40.0
+        self.max_thrust = 45050
+        self.dry_mass = 6853
+        self.fuel_capacity = 8212
+        self.fuel_remaining = self.fuel_capacity
+        self.max_torque = 40.0
         self.damping_factor = 0.75
-        self.fuel_consumption_rate = 5.0
+        self.is_thrusting = False
+        self.specific_impulse = 305
+        self.gravity = gravity
 
         # Create body
-        self.body = pymunk.Body(mass=1, moment=10)
+        self.body = pymunk.Body(
+            mass=self.dry_mass + self.fuel_remaining,
+            moment=pymunk.moment_for_box(self.dry_mass + self.fuel_remaining, (100, 100)),
+        )
         self.body.position = pos
 
         # Footpads for collision detection. These must be placed such that they are aligned with the
@@ -64,20 +69,21 @@ class Lander:
         self.image = pygame.transform.scale(self.image, (100, 100))
         self.landed = False
 
-    def thrust(self, dt):
-        if self.fuel > 0:
+    def thrust(self, throttle_pct, dt):
+        thrust_current = self.max_thrust * throttle_pct
+        if thrust_current > 0 and self.fuel_remaining > 0:
             self.is_thrusting = True
             # Apply impulse in local Y direction
-            force = (0, self.thrust_force)
-            self.body.apply_impulse_at_local_point(force, (0, 0))
-            self.fuel -= self.thrust_force * self.fuel_consumption_rate * dt
-            return True
-        return False
-
+            self.body.apply_impulse_at_local_point((0, thrust_current), (0, 0))
+            propellant_flow_rate = thrust_current / (self.specific_impulse * self.gravity)
+            propellant_used = propellant_flow_rate * dt
+            self.fuel_remaining = max(0, self.fuel_remaining - propellant_used)
+            self.body.mass = self.dry_mass + self.fuel_remaining
+        return True
+    
     def rotate(self, direction):
         # Apply torque
-        torque = self.torque_force * direction
-        # self.body.apply_force_at_local_point((torque, 0), (0, 20))
+        torque = self.max_torque_newtons * direction
         self.body.torque = torque
 
     def stop_rotation(self):
@@ -102,7 +108,7 @@ class Lander:
                 pygame.draw.line(screen, (255, 255, 255), p1, p2, 2)
 
         # Draw thrust flame
-        if self.is_thrusting and self.fuel > 0 and not self.landed:
+        if self.is_thrusting and self.fuel_remaining > 0 and not self.landed:
             flame_y = -40
             flame_x_offset = 5
             flame_width = 5
@@ -157,5 +163,4 @@ class Lander:
             shape.friction = 0.8
             shape.collision_type = 0
             shape.color = random.choice(explosion_palette)
-            shape.fill = random.choice(explosion_palette)
             self.space.add(body, shape)

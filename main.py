@@ -21,11 +21,17 @@ def to_pygame(p, height):
 
 def init_physics(gravity):
     physics_world = PhysicsWorld()
-    physics_world.space.gravity = (0.0, 1.62 * (gravity / 100.0))
     physics_world.set_gravity(gravity)
     physics_world.crashed = False
     physics_world.landed = False
     return physics_world
+
+
+def start_game(gravity, difficulty):
+    physics_world = init_physics(gravity)
+    terrain = Terrain(physics_world.space, WIDTH, HEIGHT, difficulty)
+    lander = Lander(physics_world.space, pos=(WIDTH // 5, HEIGHT - 100), gravity=gravity)
+    return physics_world, terrain, lander
 
 
 def main():
@@ -62,32 +68,7 @@ def main():
             action = menu.handle_input(events)
             if action == "GAME":
                 state = "GAME"
-                # Re-create lander and terrain?
-                # For now just ensure lander is reset
-                # We need to clear space?
-                # Let's just reset lander position if it exists, or create new
-                # But terrain is static.
-                # Ideally we should reset everything.
-                # Let's simple reset:
-                # Remove old lander if any
-                if lander:
-                    # Remove shapes?
-                    # Since we don't have a clean remove method that handles everything perfectly if we lost reference
-                    # But we have `lander` reference.
-                    # Actually, let's just create a new physics world for a fresh game?
-                    # That's cleaner.
-                    pass
-
-                physics_world = init_physics(menu.gravity_val)
-                terrain = Terrain(physics_world.space, WIDTH, HEIGHT, menu.difficulty_val)
-                lander = Lander(physics_world.space, (WIDTH // 4, HEIGHT - 100))
-
-                # Fuel supply is dynamic based on gravity
-                base_fuel = 500.0 * (menu.gravity_val / 100.0)
-
-                lander.fuel = base_fuel
-                lander.max_fuel = base_fuel
-
+                physics_world, terrain, lander = start_game(menu.gravity_val, menu.difficulty_val)
             elif action == "EDITOR":
                 state = "EDITOR"
 
@@ -116,8 +97,7 @@ def main():
             if lander and getattr(physics_world, "space_released", False):
                 lander.is_thrusting = False
                 if keys[pygame.K_SPACE] or keys[pygame.K_UP]:
-                    lander.thrust(dt)
-
+                    lander.thrust(0.1, dt)
                 if keys[pygame.K_LEFT]:
                     lander.rotate(1)
                 elif keys[pygame.K_RIGHT]:
@@ -166,7 +146,7 @@ def main():
                 vel = lander.get_velocity()
                 alt = lander.get_altitude()
                 # Ensure we pass the current fuel value
-                hud.draw(screen, vel, lander.fuel, lander.max_fuel, alt)
+                hud.draw(screen, vel, lander.fuel_remaining, lander.fuel_capacity, alt)
             else:
                 # Draw debris
                 for body in physics_world.space.bodies:
@@ -200,7 +180,7 @@ def main():
                             for v in shape.get_vertices():
                                 p_world = body.local_to_world(v)
                                 points.append(to_pygame(p_world, HEIGHT))
-                            pygame.draw.polygon(screen, shape.color, points, 2)
+                            pygame.draw.polygon(screen, shape.color, points, 0)
 
         elif state == "GAME_OVER":
             # Render game background (frozen)
@@ -220,7 +200,7 @@ def main():
                                 for v in shape.get_vertices():
                                     p_world = body.local_to_world(v)
                                     points.append(to_pygame(p_world, HEIGHT))
-                                pygame.draw.polygon(screen, shape.color, points, 2)
+                                pygame.draw.polygon(screen, shape.color, points, 0)
 
             # Draw Game Over Menu
             stats = None
@@ -236,11 +216,7 @@ def main():
             action = game_over_menu.handle_input(events)
             if action == "RESTART":
                 state = "GAME"
-                # Reset game
-                physics_world = init_physics(menu.gravity_val)
-                terrain = Terrain(physics_world.space, WIDTH, HEIGHT, menu.difficulty_val)
-                lander = Lander(physics_world.space, (WIDTH // 2, HEIGHT - 100))
-                lander.fuel = base_fuel
+                physics_world, terrain, lander = start_game(menu.gravity_val, menu.difficulty_val)
             elif action == "MENU":
                 state = "MENU"
 

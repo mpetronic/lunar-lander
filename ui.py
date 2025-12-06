@@ -58,21 +58,21 @@ class HUD:
 
 class Menu:
     def __init__(self):
-        self.font_title = pygame.font.SysFont("Arial", 60)
-        self.font_option = pygame.font.SysFont("Arial", 30)
+        self.font_title = pygame.font.SysFont("Arial", 50)
+        self.font_option = pygame.font.SysFont("Arial", 25)
         self.gravity_val = app_config.gravity
         self.difficulty_val = app_config.difficulty
 
     def draw(self, screen):
         screen.fill((0, 0, 0))
 
-        title = self.font_title.render("LUNAR LANDER", True, WHITE)
+        title = self.font_title.render("L U N A R  L A N D E R", True, WHITE)
         screen.blit(title, (screen.get_width() // 2 - title.get_width() // 2, 200))
 
         start_text = self.font_option.render("Press SPACE to Start", True, GREEN)
         screen.blit(start_text, (screen.get_width() // 2 - start_text.get_width() // 2, 400))
 
-        grav_text = self.font_option.render(f"< Gravity: {self.gravity_val}% >", True, WHITE)
+        grav_text = self.font_option.render(f"< Gravity: {self.gravity_val:.3f} >", True, WHITE)
         screen.blit(grav_text, (screen.get_width() // 2 - grav_text.get_width() // 2, 500))
 
         diff_text = self.font_option.render(f"^ Difficulty: {self.difficulty_val} v", True, WHITE)
@@ -89,9 +89,15 @@ class Menu:
                 elif event.key == pygame.K_e:
                     return "EDITOR"
                 elif event.key == pygame.K_LEFT:
-                    self.gravity_val = max(10, self.gravity_val - 10)
+                    if event.mod & pygame.KMOD_SHIFT:
+                        self.gravity_val = max(1, self.gravity_val - 1)
+                    else:
+                        self.gravity_val = max(1, self.gravity_val - 0.1)
                 elif event.key == pygame.K_RIGHT:
-                    self.gravity_val = min(200, self.gravity_val + 10)
+                    if event.mod & pygame.KMOD_SHIFT:
+                        self.gravity_val = min(10, self.gravity_val + 1)
+                    else:
+                        self.gravity_val = min(10, self.gravity_val + 0.1)
                 elif event.key == pygame.K_UP:
                     self.difficulty_val = min(5, self.difficulty_val + 1)
                 elif event.key == pygame.K_DOWN:
