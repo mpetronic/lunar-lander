@@ -12,7 +12,20 @@ class Terrain:
         self.height = height
         self.difficulty = max(1, min(5, difficulty))
         self.lines = []
+        self.stars = []
         self.generate()
+        self.generate_stars()
+
+    def generate_stars(self):
+        import random
+
+        self.stars = []
+        for _ in range(300):
+            x = random.randint(0, self.width)
+            y = random.randint(0, self.height)
+            radius = random.randint(1, 2)
+            brightness = random.randint(100, 255)
+            self.stars.append({"x": x, "y": y, "r": radius, "b": brightness})
 
     def generate(self):
         import random
@@ -196,6 +209,11 @@ class Terrain:
             self.lines.append(segment)
 
     def draw(self, screen, height):
+        # Draw stars first
+        for star in self.stars:
+            color = (star["b"], star["b"], star["b"])
+            pygame.draw.circle(screen, color, (star["x"], star["y"]), star["r"])
+
         # Create a polygon for the ground
         # Points: (0, 0), all terrain points, (width, 0)
         # Note: Pygame coordinates have (0,0) at top-left.

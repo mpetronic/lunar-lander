@@ -11,34 +11,15 @@ class HUD:
         vx = velocity.x
         vy = velocity.y
 
-        # Velocity Readout
-        # Limits: vx <= 3, vy <= 5 (downwards, so >= -5)
-        # But wait, vy is negative when falling.
-        # So "safe" is vy >= -5.
-        # Warning: approaching limits.
+        h_dir = "→" if vx > 0 else "←" if vx < 0 else ""
+        v_dir = "↓" if vy < 0 else "↑" if vy > 0 else ""
+        vx_color = RED if abs(vx) > 3.0 else YELLOW if abs(vx) > 2.0 else WHITE
+        vy_color = RED if vy < -5.0 else YELLOW if vy < -3.0 else WHITE
 
-        # Horizontal
-        vx_color = WHITE
-        if abs(vx) > 3.0:
-            vx_color = RED
-        elif abs(vx) > 2.0:
-            vx_color = YELLOW
-
-        vx_text = self.font.render(f"H. Vel: {abs(vx):.1f} m/s", True, vx_color)
+        vx_text = self.font.render(f"{h_dir:<2} {abs(vx):.1f} m/s ", True, vx_color)
         screen.blit(vx_text, (10, 10))
 
-        # Vertical
-        vy_color = WHITE
-        # vy is positive up, negative down.
-        # Safe landing is usually small downward velocity.
-        # Say -5 to 0.
-        # If vy < -5 (falling fast), it's bad.
-        if vy < -5.0:
-            vy_color = RED
-        elif vy < -3.0:
-            vy_color = YELLOW
-
-        vy_text = self.font.render(f"V. Vel: {abs(vy):.1f} m/s", True, vy_color)
+        vy_text = self.font.render(f"{v_dir:<2} {abs(vy):.1f} m/s ", True, vy_color)
         screen.blit(vy_text, (10, 30))
 
         # Fuel Gauge
