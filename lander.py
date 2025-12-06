@@ -1,3 +1,4 @@
+import os
 import pymunk
 import pygame
 
@@ -57,6 +58,11 @@ class Lander:
         self.space.add(self.body, *self.shapes)
         self.is_thrusting = False
 
+        self.image = pygame.image.load(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "lander.png")
+        )
+        self.image = pygame.transform.scale_by(self.image, 1.0)
+
     def thrust(self, dt):
         if self.fuel > 0:
             self.is_thrusting = True
@@ -83,15 +89,20 @@ class Lander:
             return int(p.x), int(height - p.y)
 
         # Draw main body
-        p = [to_pygame(self.body.local_to_world(v)) for v in self.main_shape.get_vertices()]
-        pygame.draw.polygon(screen, (200, 200, 200), p)
-        pygame.draw.polygon(screen, (255, 255, 255), p, 2)
+        # p = [to_pygame(self.body.local_to_world(v)) for v in self.main_shape.get_vertices()]
+        # pygame.draw.polygon(screen, (200, 200, 200), p)
+        # pygame.draw.polygon(screen, (255, 255, 255), p, 2)
 
         # Draw legs
-        for shape in [self.leg_l, self.leg_r, self.foot_l, self.foot_r]:
-            p1 = to_pygame(self.body.local_to_world(shape.a))
-            p2 = to_pygame(self.body.local_to_world(shape.b))
-            pygame.draw.line(screen, (255, 255, 255), p1, p2, 2)
+        # for shape in [self.leg_l, self.leg_r, self.foot_l, self.foot_r]:
+        #     p1 = to_pygame(self.body.local_to_world(shape.a))
+        #     p2 = to_pygame(self.body.local_to_world(shape.b))
+        #     pygame.draw.line(screen, (255, 255, 255), p1, p2, 2)
+
+        lander_center_pygame = to_pygame(self.body.position)
+        rotated_image = pygame.transform.rotate(self.image, self.body.angle * 180 / 3.14159)
+        image_rect = rotated_image.get_rect(center=lander_center_pygame)
+        screen.blit(rotated_image, image_rect)
 
         # Draw thrust flame
         if self.is_thrusting and self.fuel > 0:

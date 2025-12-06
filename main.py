@@ -1,3 +1,4 @@
+import os
 import pygame
 import sys
 from physics import PhysicsWorld
@@ -37,9 +38,9 @@ def main():
     pygame.display.set_caption("Lunar Lander")
     clock = pygame.time.Clock()
 
-    physics_world = PhysicsWorld()
-    terrain = Terrain(physics_world.space, WIDTH, HEIGHT)
-    lander = Lander(physics_world.space, (100, 500))
+    physics_world = None# PhysicsWorld()
+    terrain = None  # Terrain(physics_world.space, WIDTH, HEIGHT)
+    lander = None  #Lander(physics_world.space, (100, 500))
     hud = HUD()
     menu = Menu()
     game_over_menu = GameOverMenu()
@@ -63,10 +64,6 @@ def main():
             action = menu.handle_input(events)
             if action == "GAME":
                 state = "GAME"
-                physics_world.set_gravity(menu.gravity_val)
-                # Reset game
-                physics_world.crashed = False
-                physics_world.landed = False
                 # Re-create lander and terrain?
                 # For now just ensure lander is reset
                 # We need to clear space?
@@ -86,6 +83,8 @@ def main():
                 # Re-init world
                 physics_world = PhysicsWorld()
                 physics_world.set_gravity(menu.gravity_val)
+                physics_world.crashed = False
+                physics_world.landed = False
                 terrain = Terrain(physics_world.space, WIDTH, HEIGHT, menu.difficulty_val)
 
                 # Calculate fuel
@@ -102,7 +101,7 @@ def main():
                 # Let's make it dynamic based on gravity
                 base_fuel = 500.0 * (menu.gravity_val / 100.0)
 
-                lander = Lander(physics_world.space, (WIDTH // 2, HEIGHT - 100))
+                lander = Lander(physics_world.space, (WIDTH // 4, HEIGHT - 100))
                 lander.fuel = base_fuel
                 lander.max_fuel = base_fuel
 
