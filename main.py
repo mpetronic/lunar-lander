@@ -1,4 +1,3 @@
-import os
 import pygame
 import sys
 from physics import PhysicsWorld
@@ -10,7 +9,7 @@ from editor import TerrainEditor
 import pymunk
 
 WIDTH, HEIGHT = 1800, 900
-FPS = 60
+FPS = 120
 
 WHITE = (255, 255, 255)
 

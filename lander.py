@@ -151,7 +151,7 @@ class Lander:
             body.position = self.body.position
             vel_factor = 5
             vel_x = random.uniform(-vel_factor * n, vel_factor * n)
-            vel_y = random.uniform(-vel_factor * n, vel_factor * n)
+            vel_y = random.uniform(-vel_factor * 0, vel_factor * n)
             body.velocity = self.body.velocity + (vel_x, vel_y)
             body.angular_velocity = random.uniform(-10, 10)
             shape = pymunk.Poly.create_box(body, size)

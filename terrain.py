@@ -2,7 +2,7 @@ import pymunk
 import pygame
 from utils import to_pygame, GRAY
 
-TEST_TERRAIN_FILE = "custom_terrain.json"
+TEST_TERRAIN_FILE = "custom_terrain_2.json"
 
 
 class Terrain:
@@ -233,6 +233,6 @@ class Terrain:
 
             if getattr(line, "is_pad", False):
                 # Draw thick pad
-                pygame.draw.line(screen, (184, 115, 51), p1, p2, 10)
+                pygame.draw.line(screen, (67, 171, 89), p1, p2, 10)
             else:
                 pygame.draw.line(screen, GRAY, p1, p2, 3)

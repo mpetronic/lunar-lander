@@ -1,0 +1,192 @@
+[
+    {
+        "x": 1,
+        "y": 9,
+        "isPad": false
+    },
+    {
+        "x": 234,
+        "y": 132,
+        "isPad": false
+    },
+    {
+        "x": 293,
+        "y": 38,
+        "isPad": false
+    },
+    {
+        "x": 416,
+        "y": 27,
+        "isPad": true
+    },
+    {
+        "x": 553,
+        "y": 27,
+        "isPad": false
+    },
+    {
+        "x": 616,
+        "y": 21,
+        "isPad": false
+    },
+    {
+        "x": 682,
+        "y": 230,
+        "isPad": false
+    },
+    {
+        "x": 794,
+        "y": 202,
+        "isPad": false
+    },
+    {
+        "x": 808,
+        "y": 117,
+        "isPad": false
+    },
+    {
+        "x": 827,
+        "y": 122,
+        "isPad": false
+    },
+    {
+        "x": 864,
+        "y": 167,
+        "isPad": false
+    },
+    {
+        "x": 866,
+        "y": 206,
+        "isPad": false
+    },
+    {
+        "x": 917,
+        "y": 257,
+        "isPad": false
+    },
+    {
+        "x": 942,
+        "y": 318,
+        "isPad": false
+    },
+    {
+        "x": 976,
+        "y": 378,
+        "isPad": false
+    },
+    {
+        "x": 1030,
+        "y": 348,
+        "isPad": false
+    },
+    {
+        "x": 1060,
+        "y": 306,
+        "isPad": false
+    },
+    {
+        "x": 1083,
+        "y": 248,
+        "isPad": false
+    },
+    {
+        "x": 1152,
+        "y": 174,
+        "isPad": false
+    },
+    {
+        "x": 1159,
+        "y": 86,
+        "isPad": false
+    },
+    {
+        "x": 1167,
+        "y": 23,
+        "isPad": true
+    },
+    {
+        "x": 1303,
+        "y": 23,
+        "isPad": false
+    },
+    {
+        "x": 1303,
+        "y": 24,
+        "isPad": false
+    },
+    {
+        "x": 1310,
+        "y": 617,
+        "isPad": false
+    },
+    {
+        "x": 1333,
+        "y": 665,
+        "isPad": false
+    },
+    {
+        "x": 1355,
+        "y": 669,
+        "isPad": false
+    },
+    {
+        "x": 1381,
+        "y": 641,
+        "isPad": false
+    },
+    {
+        "x": 1397,
+        "y": 579,
+        "isPad": false
+    },
+    {
+        "x": 1402,
+        "y": 473,
+        "isPad": false
+    },
+    {
+        "x": 1419,
+        "y": 373,
+        "isPad": false
+    },
+    {
+        "x": 1461,
+        "y": 307,
+        "isPad": true
+    },
+    {
+        "x": 1587,
+        "y": 307,
+        "isPad": false
+    },
+    {
+        "x": 1631,
+        "y": 339,
+        "isPad": false
+    },
+    {
+        "x": 1644,
+        "y": 415,
+        "isPad": false
+    },
+    {
+        "x": 1674,
+        "y": 443,
+        "isPad": false
+    },
+    {
+        "x": 1696,
+        "y": 571,
+        "isPad": false
+    },
+    {
+        "x": 1740,
+        "y": 607,
+        "isPad": false
+    },
+    {
+        "x": 1795,
+        "y": 611,
+        "isPad": false
+    }
+]
