@@ -2,6 +2,8 @@ import pymunk
 import pygame
 from utils import to_pygame, GRAY
 
+TEST_TERRAIN_FILE = "terrain_test.json"
+
 
 class Terrain:
     def __init__(self, space, width, height, difficulty=1):
@@ -18,6 +20,9 @@ class Terrain:
         import os
 
         TERRAIN_FILE = f"terrain_level_{self.difficulty}.json"
+        if TEST_TERRAIN_FILE:
+            print("Loading test terrain...")
+            TERRAIN_FILE = TEST_TERRAIN_FILE
 
         terrain_data = []  # List of {'x': float, 'y': float, 'isPad': bool}
 
@@ -191,6 +196,37 @@ class Terrain:
             self.lines.append(segment)
 
     def draw(self, screen, height):
+        # Create a polygon for the ground
+        # Points: (0, 0), all terrain points, (width, 0)
+        # Note: Pygame coordinates have (0,0) at top-left.
+        # Our terrain points are in Pymunk coordinates (y up).
+        # We need to convert them.
+
+        poly_points = []
+        # Start at bottom-left
+        poly_points.append((0, height))
+
+        # Add all terrain points
+        # We can iterate through lines to get points in order
+        # lines[0].a is the first point
+        # lines[i].b is the next point
+
+        if not self.lines:
+            return
+
+        first_pt = self.lines[0].a
+        poly_points.append(to_pygame(first_pt, height))
+
+        for line in self.lines:
+            poly_points.append(to_pygame(line.b, height))
+
+        # End at bottom-right
+        poly_points.append((self.width, height))
+
+        # Draw filled polygon
+        pygame.draw.polygon(screen, (50, 50, 50), poly_points)
+
+        # Draw surface lines
         for line in self.lines:
             p1 = to_pygame(line.a, height)
             p2 = to_pygame(line.b, height)

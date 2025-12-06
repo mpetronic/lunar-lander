@@ -31,6 +31,13 @@ try:
 except NameError:
     import pymunk
 
+def init_physics(gravity):
+    physics_world = PhysicsWorld()
+    physics_world.space.gravity = (0.0, 1.62 * (gravity / 100.0))
+    physics_world.set_gravity(gravity)
+    physics_world.crashed = False
+    physics_world.landed = False
+    return physics_world
 
 def main():
     pygame.init()
@@ -80,28 +87,13 @@ def main():
                     # That's cleaner.
                     pass
 
-                # Re-init world
-                physics_world = PhysicsWorld()
-                physics_world.set_gravity(menu.gravity_val)
-                physics_world.crashed = False
-                physics_world.landed = False
+                physics_world = init_physics(menu.gravity_val)
                 terrain = Terrain(physics_world.space, WIDTH, HEIGHT, menu.difficulty_val)
+                lander = Lander(physics_world.space, (WIDTH // 4, HEIGHT - 100))
 
-                # Calculate fuel
-                # Simple algorithm: Distance to furthest pad * gravity factor
-                # Find furthest pad
-                # We don't have easy access to pads from here, let's just use a heuristic
-                # Distance from start (100, 500) to bottom right (800, 50) is roughly 800
-                # Gravity 100.
-                # Fuel consumption is 10 per second.
-                # Time to travel = Distance / AvgSpeed.
-                # AvgSpeed ~ 20.
-                # Time ~ 40s.
-                # Fuel ~ 400.
-                # Let's make it dynamic based on gravity
+                # Fuel supply is dynamic based on gravity
                 base_fuel = 500.0 * (menu.gravity_val / 100.0)
 
-                lander = Lander(physics_world.space, (WIDTH // 4, HEIGHT - 100))
                 lander.fuel = base_fuel
                 lander.max_fuel = base_fuel
 
@@ -153,6 +145,7 @@ def main():
                 result_text = "CRASHED!"
 
             elif physics_world.landed:
+                lander.landed = True
                 print("Level Complete!")
                 physics_world.landed = False
                 state = "GAME_OVER"
@@ -240,15 +233,10 @@ def main():
             if action == "RESTART":
                 state = "GAME"
                 # Reset game
-                physics_world = PhysicsWorld()
+                physics_world = init_physics(menu.gravity_val)
                 terrain = Terrain(physics_world.space, WIDTH, HEIGHT, menu.difficulty_val)
-
-                # Gravity
-                # Gravity
-                physics_world.space.gravity = (0.0, 1.62 * (menu.gravity_val / 100.0))
                 lander = Lander(physics_world.space, (WIDTH // 2, HEIGHT - 100))
                 lander.fuel = base_fuel
-
             elif action == "MENU":
                 state = "MENU"
 
