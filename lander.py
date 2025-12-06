@@ -2,8 +2,31 @@ import os
 import pymunk
 import pygame
 import random
+from utils import DEBUG
 
-DEBUG = False
+explosion_palette = [
+    (255, 200, 100),  # hot white core (still bright but reduced)
+    (255, 180, 80),
+    (255, 160, 60),
+    (255, 140, 40),
+    (255, 120, 30),
+    (255, 100, 20),
+    (240, 90, 15),
+    (220, 80, 10),
+    (200, 70, 8),
+    (180, 65, 5),  # strong dark orange
+    (160, 60, 5),
+    (140, 55, 5),
+    (120, 50, 5),  # deep red-orange
+    (100, 45, 5),
+    (90, 40, 5),
+    (80, 35, 5),
+    (70, 30, 8),  # very dark red with slight purple hint
+    (60, 25, 8),
+    (50, 20, 10),
+    (40, 15, 10),  # almost black, perfect for smoke/fade-out]
+]
+
 
 class Lander:
     def __init__(self, space, pos):
@@ -118,29 +141,23 @@ class Lander:
     def explode(self):
         # Remove original body and shapes
         self.space.remove(self.body, *self.shapes)
-
-        # Create debris for each part
-        # Main body
-        self._create_debris(self.body.position, (20, 30), self.body.velocity)
-
-        # Legs (approximate as small boxes for debris)
-        self._create_debris(self.body.position + (-12, -20), (5, 10), self.body.velocity)
-        self._create_debris(self.body.position + (12, -20), (5, 10), self.body.velocity)
-
-    def _create_debris(self, pos, size, vel):
-        import random
-
-        mass = 0.2
-        moment = pymunk.moment_for_box(mass, size)
-        body = pymunk.Body(mass, moment)
-        body.position = pos
-        body.velocity = vel + (random.uniform(-50, 50), random.uniform(-50, 50))
-        body.angular_velocity = random.uniform(-10, 10)
-
-        shape = pymunk.Poly.create_box(body, size)
-        shape.elasticity = 0.6
-        shape.friction = 0.5
-        shape.collision_type = 0  # Default, no special handling needed or maybe debris type
-
-        self.space.add(body, shape)
-        return body, shape
+        # Create debris
+        for n in range(1, 100):
+            mass = 0.2
+            s = int(n / 8.0) + 1
+            size = (random.randint(s, s), random.randint(s, s))
+            moment = pymunk.moment_for_box(mass, size)
+            body = pymunk.Body(mass, moment)
+            body.position = self.body.position
+            vel_factor = 5
+            vel_x = random.uniform(-vel_factor * n, vel_factor * n)
+            vel_y = random.uniform(-vel_factor * n, vel_factor * n)
+            body.velocity = self.body.velocity + (vel_x, vel_y)
+            body.angular_velocity = random.uniform(-10, 10)
+            shape = pymunk.Poly.create_box(body, size)
+            shape.elasticity = 0.8
+            shape.friction = 0.8
+            shape.collision_type = 0
+            shape.color = random.choice(explosion_palette)
+            shape.fill = random.choice(explosion_palette)
+            self.space.add(body, shape)

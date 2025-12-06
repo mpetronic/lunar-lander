@@ -5,31 +5,20 @@ from physics import PhysicsWorld
 from lander import Lander
 from terrain import Terrain
 from ui import HUD, Menu, GameOverMenu
+from editor import TerrainEditor
+
+import pymunk
 
 WIDTH, HEIGHT = 1800, 900
 FPS = 60
 
-# Assuming these are defined elsewhere or need to be defined for the snippet to be complete
-# For the purpose of this edit, I'll define them as placeholders if they are missing.
-# If they are already defined in the original code, they will remain.
-try:
-    WHITE
-except NameError:
-    WHITE = (255, 255, 255)
-
-try:
-    to_pygame
-except NameError:
-
-    def to_pygame(p, height):
-        """Convert pymunk coordinates to pygame coordinates."""
-        return int(p.x), int(height - p.y)
+WHITE = (255, 255, 255)
 
 
-try:
-    pymunk
-except NameError:
-    import pymunk
+def to_pygame(p, height):
+    """Convert pymunk coordinates to pygame coordinates."""
+    return int(p.x), int(height - p.y)
+
 
 def init_physics(gravity):
     physics_world = PhysicsWorld()
@@ -39,24 +28,27 @@ def init_physics(gravity):
     physics_world.landed = False
     return physics_world
 
+
 def main():
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("Lunar Lander")
     clock = pygame.time.Clock()
 
-    physics_world = None# PhysicsWorld()
+    physics_world = None  # PhysicsWorld()
     terrain = None  # Terrain(physics_world.space, WIDTH, HEIGHT)
-    lander = None  #Lander(physics_world.space, (100, 500))
+    lander = None  # Lander(physics_world.space, (100, 500))
     hud = HUD()
     menu = Menu()
     game_over_menu = GameOverMenu()
+    editor = TerrainEditor(WIDTH, HEIGHT)
 
-    state = "MENU"  # MENU, GAME, CRASH_ANIMATION, GAME_OVER
+    state = "MENU"  # MENU, GAME, CRASH_ANIMATION, GAME_OVER, EDITOR
     crash_timer = 0.0
     crash_fuel = 0.0
     crash_vel = pymunk.Vec2d(0, 0)
     crash_angle = 0.0
+    result_text = ""
 
     running = True
     while running:
@@ -97,8 +89,21 @@ def main():
                 lander.fuel = base_fuel
                 lander.max_fuel = base_fuel
 
+            elif action == "EDITOR":
+                state = "EDITOR"
+
             screen.fill((0, 0, 0))  # Clear screen for menu
             menu.draw(screen)
+
+        elif state == "EDITOR":
+            action = editor.handle_input(events)
+            if action == "MENU":
+                state = "MENU"
+            elif action == "QUIT":
+                running = False
+
+            editor.update()
+            editor.draw(screen)
 
         elif state == "GAME":
             # Input
@@ -141,7 +146,7 @@ def main():
                 physics_world.crashed = False
                 lander = None  # Disable control
                 state = "CRASH_ANIMATION"
-                crash_timer = 2.0
+                crash_timer = 4.0
                 result_text = "CRASHED!"
 
             elif physics_world.landed:
@@ -196,7 +201,7 @@ def main():
                             for v in shape.get_vertices():
                                 p_world = body.local_to_world(v)
                                 points.append(to_pygame(p_world, HEIGHT))
-                            pygame.draw.polygon(screen, WHITE, points, 2)
+                            pygame.draw.polygon(screen, shape.color, points, 2)
 
         elif state == "GAME_OVER":
             # Render game background (frozen)
@@ -216,7 +221,7 @@ def main():
                                 for v in shape.get_vertices():
                                     p_world = body.local_to_world(v)
                                     points.append(to_pygame(p_world, HEIGHT))
-                                pygame.draw.polygon(screen, WHITE, points, 2)
+                                pygame.draw.polygon(screen, shape.color, points, 2)
 
             # Draw Game Over Menu
             stats = None

@@ -2,7 +2,7 @@ import pymunk
 import pygame
 from utils import to_pygame, GRAY
 
-TEST_TERRAIN_FILE = "terrain_test.json"
+TEST_TERRAIN_FILE = "custom_terrain.json"
 
 
 class Terrain:
