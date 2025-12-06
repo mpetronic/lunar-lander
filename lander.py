@@ -1,7 +1,7 @@
-import os
 import pymunk
 import pygame
 import random
+from pathlib import Path
 from utils import app_config
 
 explosion_palette = [
@@ -60,9 +60,7 @@ class Lander:
         self.space.add(self.body, *self.shapes)
         self.is_thrusting = False
 
-        self.image = pygame.image.load(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), "lander.png")
-        )
+        self.image = pygame.image.load(Path(__file__).parent / "sprites" / "lander.png")
         self.image = pygame.transform.scale(self.image, (100, 100))
         self.landed = False
 

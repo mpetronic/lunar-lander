@@ -1,8 +1,11 @@
+import random
+import json
+import os
+from pathlib import Path
+
 import pymunk
 import pygame
 from utils import to_pygame, GRAY, app_config
-
-TEST_TERRAIN_FILE = "custom_terrain_2.json"
 
 
 class Terrain:
@@ -17,8 +20,6 @@ class Terrain:
         self.generate_stars()
 
     def generate_stars(self):
-        import random
-
         self.stars = []
         for _ in range(300):
             x = random.randint(0, self.width)
@@ -28,28 +29,25 @@ class Terrain:
             self.stars.append({"x": x, "y": y, "r": radius, "b": brightness})
 
     def generate(self):
-        import random
-        import json
-        import os
-
-        TERRAIN_FILE = f"terrain_level_{self.difficulty}.json"
         if app_config.terrain_file:
             print("Loading test terrain...")
-            TERRAIN_FILE = app_config.terrain_file
+            terrain_filepath = app_config.terrain_file
+        else:
+            terrain_filepath = Path(__file__).parent / "terrain" / f"level_{self.difficulty}.json"
 
         terrain_data = []  # List of {'x': float, 'y': float, 'isPad': bool}
 
         # Check if we should load
         should_load = False
-        if os.path.exists(TERRAIN_FILE):
+        if os.path.exists(terrain_filepath):
             try:
-                with open(TERRAIN_FILE, "r") as f:
+                with open(terrain_filepath, "r") as f:
                     data = json.load(f)
                     # Check for new format
                     if isinstance(data, list) and len(data) > 0 and "isPad" in data[0]:
                         terrain_data = data
                         should_load = True
-                        print(f"Loaded terrain from {TERRAIN_FILE}.")
+                        print(f"Loaded terrain from {terrain_filepath}.")
                     elif "points" in data:
                         # Old format, force regen
                         print("Old terrain format detected. Regenerating...")
@@ -184,9 +182,9 @@ class Terrain:
             terrain_data.append({"x": end_target[0], "y": end_target[1], "isPad": False})
 
             # Save
-            with open(TERRAIN_FILE, "w") as f:
-                json.dump(terrain_data, f, indent=4)
-                print(f"Terrain saved to {TERRAIN_FILE}")
+            with open(terrain_filepath, "w") as f:
+                json.dump(terrain_data, f, indent=2)
+                print(f"Terrain saved to: {terrain_filepath}")
 
         # Create Pymunk segments
         self.lines = []
