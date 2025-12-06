@@ -2,7 +2,7 @@ import os
 import pymunk
 import pygame
 import random
-from utils import DEBUG
+from utils import app_config
 
 explosion_palette = [
     (255, 200, 100),  # hot white core (still bright but reduced)
@@ -97,7 +97,7 @@ class Lander:
         screen.blit(rotated_image, image_rect)
 
         # Draw pads
-        if DEBUG:
+        if app_config.debug:
             for shape in [self.foot_l, self.foot_r]:
                 p1 = to_pygame(self.body.local_to_world(shape.a))
                 p2 = to_pygame(self.body.local_to_world(shape.b))

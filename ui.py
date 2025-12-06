@@ -1,5 +1,5 @@
 import pygame
-from utils import WHITE, RED, GREEN, YELLOW, ORANGE
+from utils import WHITE, RED, GREEN, YELLOW, ORANGE, app_config
 
 
 class HUD:
@@ -60,8 +60,8 @@ class Menu:
     def __init__(self):
         self.font_title = pygame.font.SysFont("Arial", 60)
         self.font_option = pygame.font.SysFont("Arial", 30)
-        self.gravity_val = 50  # Percent
-        self.difficulty_val = 1  # Level 1-5
+        self.gravity_val = app_config.gravity
+        self.difficulty_val = app_config.difficulty
 
     def draw(self, screen):
         screen.fill((0, 0, 0))

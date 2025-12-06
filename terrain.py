@@ -1,6 +1,6 @@
 import pymunk
 import pygame
-from utils import to_pygame, GRAY
+from utils import to_pygame, GRAY, app_config
 
 TEST_TERRAIN_FILE = "custom_terrain_2.json"
 
@@ -33,9 +33,9 @@ class Terrain:
         import os
 
         TERRAIN_FILE = f"terrain_level_{self.difficulty}.json"
-        if TEST_TERRAIN_FILE:
+        if app_config.terrain_file:
             print("Loading test terrain...")
-            TERRAIN_FILE = TEST_TERRAIN_FILE
+            TERRAIN_FILE = app_config.terrain_file
 
         terrain_data = []  # List of {'x': float, 'y': float, 'isPad': bool}
 
