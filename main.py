@@ -54,6 +54,7 @@ def main():
     crash_vel = pymunk.Vec2d(0, 0)
     crash_angle = 0.0
     result_text = ""
+    mouse_origin_y = 0
 
     running = True
     while running:
@@ -69,6 +70,7 @@ def main():
             if action == "GAME":
                 state = "GAME"
                 physics_world, terrain, lander = start_game(menu.gravity_val, menu.difficulty_val)
+                mouse_origin_y = pygame.mouse.get_pos()[1]
             elif action == "EDITOR":
                 state = "EDITOR"
 
@@ -96,8 +98,18 @@ def main():
 
             if lander and getattr(physics_world, "space_released", False):
                 lander.is_thrusting = False
+
+                # Mouse control
+                current_mouse_y = pygame.mouse.get_pos()[1]
+                # Up is negative in pygame, so origin - current gives positive for upward movement
+                mouse_delta = mouse_origin_y - current_mouse_y
+                throttle_pct = max(0.0, min(1.0, mouse_delta / 400.0))  # 400 pixels range
+
                 if keys[pygame.K_SPACE] or keys[pygame.K_UP]:
-                    lander.thrust(0.1, dt)
+                    throttle_pct = 1.0
+
+                if throttle_pct > 0:
+                    lander.thrust(throttle_pct, dt)
                 if keys[pygame.K_LEFT]:
                     lander.rotate(1)
                 elif keys[pygame.K_RIGHT]:
@@ -117,7 +129,7 @@ def main():
             if physics_world.crashed:
                 print("CRASHED!")
                 # Capture stats
-                crash_fuel = lander.fuel
+                crash_fuel = lander.fuel_remaining
                 crash_vel = lander.get_velocity()
                 crash_angle = lander.body.angle * (180.0 / 3.14159)  # Convert to degrees
 
@@ -217,6 +229,7 @@ def main():
             if action == "RESTART":
                 state = "GAME"
                 physics_world, terrain, lander = start_game(menu.gravity_val, menu.difficulty_val)
+                mouse_origin_y = pygame.mouse.get_pos()[1]
             elif action == "MENU":
                 state = "MENU"
 

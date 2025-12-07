@@ -35,6 +35,7 @@ class Lander:
         self.dry_mass = 6853
         self.fuel_capacity = 8212
         self.fuel_remaining = self.fuel_capacity
+        self.throttle_pct = 0.0
         self.max_torque = 40.0
         self.damping_factor = 0.75
         self.is_thrusting = False
@@ -70,21 +71,21 @@ class Lander:
         self.landed = False
 
     def thrust(self, throttle_pct, dt):
+        self.throttle_pct = throttle_pct
         thrust_current = self.max_thrust * throttle_pct
         if thrust_current > 0 and self.fuel_remaining > 0:
             self.is_thrusting = True
             # Apply impulse in local Y direction
-            self.body.apply_impulse_at_local_point((0, thrust_current), (0, 0))
+            force = (0, thrust_current)
+            self.body.apply_impulse_at_local_point(force, (0, 0))
             propellant_flow_rate = thrust_current / (self.specific_impulse * self.gravity)
             propellant_used = propellant_flow_rate * dt
             self.fuel_remaining = max(0, self.fuel_remaining - propellant_used)
             self.body.mass = self.dry_mass + self.fuel_remaining
         return True
-    
+
     def rotate(self, direction):
-        # Apply torque
-        torque = self.max_torque_newtons * direction
-        self.body.torque = torque
+        self.body.torque = self.max_torque * direction
 
     def stop_rotation(self):
         self.body.torque = 0
@@ -115,7 +116,7 @@ class Lander:
             # Flame point relative to body: bottom center is (0, -30)
             # Flame goes down from there.
             # Triangle: (-10, -30), (10, -30), (0, -30 - length)
-            flame_len = random.uniform(10, 50)
+            flame_len = random.uniform(10, 50) * self.throttle_pct
 
             f1 = self.body.local_to_world((flame_x_offset - flame_width, flame_y))
             f2 = self.body.local_to_world((flame_x_offset + flame_width, flame_y))
