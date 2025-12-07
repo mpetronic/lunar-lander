@@ -35,13 +35,13 @@ EARTH_G0 = 9.80665
 
 
 class Lander:
-    def __init__(self, space, pos):
+    def __init__(self, space, pos, starting_fuel=1.0):
         self.space = space
         self.max_thrust = 45050
-        self.max_torque = self.max_thrust  # / 10.0
+        self.max_torque = self.max_thrust
         self.dry_mass = 6853
         self.fuel_capacity = 8212
-        self.fuel_remaining = self.fuel_capacity
+        self.fuel_remaining = self.fuel_capacity * starting_fuel
         self.throttle_pct = 0.0
         self.damping_factor = 0.75
         self.is_thrusting = False
@@ -53,37 +53,37 @@ class Lander:
         self.body = pymunk.Body(mass=total_mass, moment=moment)
 
         self.body.position = pos
-        self.lander_size = (50, 50)
+        lander_size = (50, 50)
 
         # Footpads for collision detection. These must be placed such that they are aligned with the
         # landing pads on the sprite image which should be at the bottom corners of the sprite
-        self.foot_l = pymunk.Segment(
+        self.body.left_foot = pymunk.Segment(
             self.body,
-            (-self.lander_size[0] / 2, -self.lander_size[1] / 2),
-            (-self.lander_size[0] / 2, -self.lander_size[1] / 2),
+            (-lander_size[0] / 2, -lander_size[1] / 2),
+            (-lander_size[0] / 2, -lander_size[1] / 2),
             radius=0,
         )
-        self.foot_r = pymunk.Segment(
+        self.body.right_foot = pymunk.Segment(
             self.body,
-            (self.lander_size[0] / 2, -self.lander_size[1] / 2),
-            (self.lander_size[0] / 2, -self.lander_size[1] / 2),
+            (lander_size[0] / 2, -lander_size[1] / 2),
+            (lander_size[0] / 2, -lander_size[1] / 2),
             radius=0,
         )
 
-        self.shapes = [
-            self.foot_l,
-            self.foot_r,
+        self.landing_pads = [
+            self.body.left_foot,
+            self.body.right_foot,
         ]
-        for shape in self.shapes:
-            shape.elasticity = 0.0
-            shape.friction = 1.0
-            shape.collision_type = 1
+        for pad in self.landing_pads:
+            pad.elasticity = 0.0
+            pad.friction = 1.0
+            pad.collision_type = 1
 
-        self.space.add(self.body, *self.shapes)
+        self.space.add(self.body, *self.landing_pads)
         self.is_thrusting = False
 
         self.image = pygame.image.load(Path(__file__).parent / "sprites" / "lander.png")
-        self.image = pygame.transform.scale(self.image, self.lander_size)
+        self.image = pygame.transform.scale(self.image, lander_size)
         self.landed = False
 
         print("mass={:.0f} moment={:.0f}".format(self.body.mass, self.body.moment))
@@ -150,7 +150,7 @@ class Lander:
 
         # Draw pads
         if app_config.debug:
-            for shape in [self.foot_l, self.foot_r]:
+            for shape in [self.body.left_foot, self.body.right_foot]:
                 p1 = to_pygame(self.body.local_to_world(shape.a))
                 p2 = to_pygame(self.body.local_to_world(shape.b))
                 pygame.draw.line(screen, (255, 255, 255), p1, p2, 2)
@@ -191,7 +191,7 @@ class Lander:
 
     def explode(self):
         # Remove original body and shapes
-        self.space.remove(self.body, *self.shapes)
+        self.space.remove(self.body, *self.landing_pads)
         # Create debris
         for n in range(1, 100):
             mass = 0.2

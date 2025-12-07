@@ -22,11 +22,12 @@ def to_pygame(p, height):
 def start_game(gravity, difficulty):
     physics_space = PhysicsWorld(gravity)
     terrain = Terrain(physics_space.space, WIDTH, HEIGHT, difficulty)
-    lander = Lander(physics_space.space, pos=(WIDTH // 5, HEIGHT - 100))
+    lander = Lander(physics_space.space, pos=(WIDTH // 5, HEIGHT - 100), starting_fuel=0.1)
     return physics_space, terrain, lander
 
 
 def main():
+    pygame.mixer.pre_init(frequency=22050, size=-16, channels=2, buffer=512)
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("Lunar Lander")
@@ -47,11 +48,13 @@ def main():
     crash_angle = 0.0
     result_text = ""
     mouse_origin_y = 0
+    total_time = 0.0
 
     running = True
 
     while running:
         dt = 1.0 / FPS
+        total_time += dt
 
         events = pygame.event.get()
         for event in events:
@@ -62,8 +65,9 @@ def main():
             action = menu.handle_input(events)
             if action == "GAME":
                 state = "GAME"
-                physics_space, terrain, lander = start_game(menu.gravity_val, menu.difficulty_val)
+                physics_space, terrain, lander = start_game(menu.gravity, menu.difficulty)
                 mouse_origin_y = pygame.mouse.get_pos()[1]
+                total_time = 0.0
             elif action == "EDITOR":
                 state = "EDITOR"
 
@@ -160,6 +164,7 @@ def main():
                     lander.fuel_capacity,
                     alt,
                     lander.throttle_pct,
+                    total_time,
                 )
             else:
                 # Draw debris
@@ -230,8 +235,9 @@ def main():
             action = game_over_menu.handle_input(events)
             if action == "RESTART":
                 state = "GAME"
-                physics_space, terrain, lander = start_game(menu.gravity_val, menu.difficulty_val)
+                physics_space, terrain, lander = start_game(menu.gravity, menu.difficulty)
                 mouse_origin_y = pygame.mouse.get_pos()[1]
+                total_time = 0.0
             elif action == "MENU":
                 state = "MENU"
 

@@ -9,6 +9,8 @@ BLUE = (0, 0, 255)
 YELLOW = (255, 255, 0)
 ORANGE = (255, 165, 0)
 GRAY = (100, 100, 100)
+GRAVITY_MOON = 1.62
+GRAVITY_EARTH = 9.81
 
 
 def to_pygame(p, height):

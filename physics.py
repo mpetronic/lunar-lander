@@ -1,3 +1,4 @@
+import math
 import pymunk
 
 
@@ -18,77 +19,56 @@ class PhysicsWorld:
 
     def handle_collision(self, arbiter, space, data):
         # Get shapes
-        lander_shape = arbiter.shapes[0]
-        terrain_shape = arbiter.shapes[1]
+        landing_pad = arbiter.shapes[0]
+        terrain = arbiter.shapes[1]
 
         # Ensure correct order
-        if lander_shape.collision_type != self.COLLISION_LANDER:
-            lander_shape, terrain_shape = terrain_shape, lander_shape
+        if landing_pad.collision_type != self.COLLISION_LANDER:
+            landing_pad, terrain = terrain, landing_pad
 
         # Check if already handled
         if self.crashed or self.landed:
             return True
 
         # Get Lander body
-        body = lander_shape.body
+        body = landing_pad.body
 
         # Check velocity
-        # Pymunk y is up, so negative vy is falling.
-        vx = body.velocity.x
-        vy = body.velocity.y
+        vv = abs(body.velocity.y)
+        vh = abs(body.velocity.x)
+        total_tilt_deg = math.degrees(body.angle)
 
-        # Check angle (in radians). 0 is upright.
-        angle = body.angle
+        self.crashed = not self.doghouse_safe_landing(vv, vh, total_tilt_deg)
 
-        # Limits
-        MAX_VX = 50.0
-        MAX_VY = (
-            -50.0
-        )  # Downward velocity is negative, so we check if vy >= -5.0 (i.e. closer to 0)
-        MAX_ANGLE = 0.5  # radians
+        if self.crashed:
+            print(f"CRASHED! vh={vh:.1f}, vv={vv:.1f}, angle={total_tilt_deg:.2f}")
+            return True
 
         # Check if terrain is pad
-        is_pad = getattr(terrain_shape, "is_pad", False)
-
-        # Logic
-        # Note: Pymunk y-axis is up. Gravity is down (-y).
-        # Falling velocity is negative.
-        # "Exceeds 5 m/s" means abs(vy) > 5.
-        # So safe if abs(vy) <= 5.
-        safe_vertical = abs(vy) <= abs(MAX_VY)
-        safe_horizontal = abs(vx) <= MAX_VX
-        safe_angle = abs(angle) <= MAX_ANGLE
-
+        is_pad = getattr(terrain, "is_pad", False)
         safe_position = False
         if is_pad:
             # Check if lander is fully within pad bounds
             # Pad is a segment from a to b
-            pad_x1 = min(terrain_shape.a.x, terrain_shape.b.x)
-            pad_x2 = max(terrain_shape.a.x, terrain_shape.b.x)
+            pad_l = min(terrain.a.x, terrain.b.x)
+            pad_r = max(terrain.a.x, terrain.b.x)
+            leg_l = body.local_to_world(body.left_foot.a).x
+            leg_r = body.local_to_world(body.right_foot.a).x
 
-            # Lander width check
-            # Lander feet are at +/- 36 from center (approx)
-            # Let's use a slightly wider margin to be safe or exact?
-            # User said "both lander landing legs".
-            # Left foot outer edge is roughly -36, Right is +36.
-            lander_x = body.position.x
-            lander_left = lander_x - 36
-            lander_right = lander_x + 36
-
-            if lander_left >= pad_x1 and lander_right <= pad_x2:
+            if leg_l >= pad_l and leg_r <= pad_r:
                 safe_position = True
             else:
                 print(
-                    f"Missed pad bounds: Pad({pad_x1:.1f}, {pad_x2:.1f}) Lander({lander_left:.1f}, {lander_right:.1f})"
+                    "Missed pad bounds: Pad({pad_l:.1f}, {pad_r:.1f}) Lander({leg_l:.1f}, {leg_r:.1f})"
                 )
 
-        if is_pad and safe_vertical and safe_horizontal and safe_angle and safe_position:
+        if is_pad and safe_position:
             self.landed = True
             print("LANDED SAFE!")
         else:
             self.crashed = True
             print(
-                f"CRASHED! vx={vx:.1f}, vy={vy:.1f}, angle={angle:.2f}, pad={is_pad}, pos={safe_position}"
+                f"CRASHED OFF PAD! vx={vh:.1f}, vy={vv:.1f}, angle={total_tilt_deg:.2f}, pad={is_pad}, pos={safe_position}"
             )
 
         return True
@@ -98,3 +78,28 @@ class PhysicsWorld:
 
     def step(self, dt):
         self.space.step(dt)
+
+    def doghouse_safe_landing(self, vv_ms, vh_ms, total_tilt_deg):
+        """
+        Full Apollo LM safe landing check (Doghouse + Tilt).
+        vv_ms = abs(lander.body.velocity.y)  # downward
+        vh_ms = abs(lander.body.velocity.x)  # horizontal
+        total_tilt_deg = math.degrees(math.atan2(  # or from pitch/roll
+            math.sqrt(body_pitch_rad**2 + body_roll_rad**2), 1))
+        """
+        # Velocity Doghouse (unchanged)
+        if vv_ms > 3.05 or vh_ms > 1.22:
+            print(f"vv_ms ({vv_ms}) > 3.05 or vh_ms ({vh_ms}) > 1.22")
+            return False
+        if vv_ms <= 2.13:
+            max_vh = 1.22
+        else:  # Linear to 0 at 3.05 m/s
+            max_vh = (4.0 / 3.0) * (3.05 - vv_ms)
+        if vh_ms > max_vh:
+            print(f"vh_ms ({vh_ms}) > max_vh ({max_vh})")
+            return False
+        # Tilt limit
+        if total_tilt_deg > 12.0:
+            print(f"total_tilt_deg ({total_tilt_deg}) > 12.0")
+            return False
+        return True

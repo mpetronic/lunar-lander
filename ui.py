@@ -1,5 +1,5 @@
 import pygame
-from utils import BLACK, WHITE, RED, GREEN, YELLOW, ORANGE, app_config
+from utils import BLACK, WHITE, RED, GREEN, YELLOW, ORANGE, app_config, GRAVITY_MOON
 
 
 class HUD:
@@ -7,41 +7,99 @@ class HUD:
         self.font = pygame.font.SysFont("Arial", 16)
 
     def _draw_fuel_gauge(self, screen, fuel, max_fuel):
-        bar_width = 100
-        bar_height = 20
-        x = screen.get_width() - bar_width - 10
+        gauge_width = 100
+        gauge_height = 20
+        x = screen.get_width() - gauge_width - 10
         y = 10
 
-        pygame.draw.rect(screen, (50, 50, 50), (x, y, bar_width, bar_height))
+        border_thickness = 2
 
-        pct = max(0.0, min(1.0, fuel / max_fuel)) if max_fuel > 0 else 0
-        fill_width = int(pct * bar_width)
+        # Draw border
+        gauge = pygame.draw.rect(screen, WHITE, (x, y, gauge_width, gauge_height), border_thickness)
+
+        # Draw background
+        display_area = pygame.draw.rect(
+            screen,
+            BLACK,
+            (
+                gauge.x + border_thickness,
+                gauge.y + border_thickness,
+                gauge.width - 2 * border_thickness,
+                gauge.height - 2 * border_thickness,
+            ),
+        )
+
+        pct_fuel_remaining = max(0.0, min(1.0, fuel / max_fuel)) if max_fuel > 0 else 0
+        fill_width = int(pct_fuel_remaining * display_area.width)
         fill_color = GREEN
-        if pct < 0.2:
+        if pct_fuel_remaining < 0.2:
             fill_color = RED
-        elif pct < 0.3:
+        elif pct_fuel_remaining < 0.3:
             fill_color = ORANGE
 
-        pygame.draw.rect(screen, fill_color, (x + 1, y + 1, fill_width - 2, bar_height - 2))
+        pygame.draw.rect(
+            screen, fill_color, (display_area.x, display_area.y, fill_width, display_area.height)
+        )
+
         fuel_text = self.font.render(f"Fuel: {int(fuel)}", True, WHITE)
         screen.blit(fuel_text, (x - 80, y))
 
     def _draw_throttle_gauge(self, screen, throttle_pct):
-        bar_width = 20
-        bar_height = 100
+        gauge_width = 20
+        gauge_height = 100
         x = 10
-        y = 70
+        y = 100
 
-        pygame.draw.rect(screen, (50, 50, 50), (x, y, bar_width, bar_height))
+        # Draw border and background
+        border_thickness = 2
+        gauge = pygame.draw.rect(screen, WHITE, (x, y, gauge_width, gauge_height), border_thickness)
+        display_area = pygame.draw.rect(
+            screen,
+            BLACK,
+            (
+                gauge.x + border_thickness,
+                gauge.y + border_thickness,
+                gauge.width - 2 * border_thickness,
+                gauge.height - 2 * border_thickness,
+            ),
+        )
 
-        pct = max(0.0, min(1.0, throttle_pct))
-        fill_height = int(pct * (bar_height - 2))
-        fill_color = GREEN
-        pygame.draw.rect(screen, fill_color, (x + 1, y + bar_height - fill_height - 1, bar_width - 2, fill_height))
+        # Draw segments
+        segment_height = 5
+        segment_margin = 1
+
+        # Calculate available height for segments
+        num_segments = display_area.height // (segment_height + segment_margin)
+        active_segments = int(throttle_pct * num_segments)
+
+        start_x = display_area.x
+        start_y = display_area.bottom - segment_height
+
+        for i in range(num_segments):
+            color = (200, 200, 200) if i < active_segments else (50, 50, 50)
+            seg_y = start_y - i * (segment_height + segment_margin)
+            pygame.draw.rect(
+                screen,
+                color,
+                (
+                    start_x,
+                    seg_y,
+                    display_area.width,
+                    segment_height,
+                ),
+            )
+
         throttle_text = self.font.render(f"Throttle: {int(throttle_pct * 100)}", True, WHITE)
-        screen.blit(throttle_text, (x, y + bar_height + 5))
+        screen.blit(throttle_text, (x, y + gauge_height + 5))
 
-    def draw(self, screen, velocity, fuel, max_fuel, altitude, throttle_pct):
+    def format_met(self, seconds):
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        secs = int(seconds % 60)
+        hundredths = int((seconds * 100) % 100)
+        return f"{hours:03d}:{minutes:02d}:{secs:02d}.{hundredths:02d}"
+
+    def draw(self, screen, velocity, fuel, max_fuel, altitude, throttle_pct, total_time):
         vx = velocity.x
         vy = velocity.y
 
@@ -59,6 +117,9 @@ class HUD:
         alt_text = self.font.render(f"Alt: {int(altitude)}", True, WHITE)
         screen.blit(alt_text, (10, 50))
 
+        met = self.font.render(f"Time: {self.format_met(total_time)}", True, WHITE)
+        screen.blit(met, (10, 70))
+
         self._draw_fuel_gauge(screen, fuel, max_fuel)
         self._draw_throttle_gauge(screen, throttle_pct)
 
@@ -67,8 +128,8 @@ class Menu:
     def __init__(self):
         self.font_title = pygame.font.SysFont("Arial", 50)
         self.font_option = pygame.font.SysFont("Arial", 25)
-        self.gravity_val = app_config.gravity
-        self.difficulty_val = app_config.difficulty
+        self.gravity = app_config.gravity if app_config.gravity else GRAVITY_MOON
+        self.difficulty = app_config.difficulty if app_config.difficulty else 1
 
     def draw(self, screen):
         screen.fill((0, 0, 0))
@@ -79,10 +140,10 @@ class Menu:
         start_text = self.font_option.render("Press SPACE to Start", True, GREEN)
         screen.blit(start_text, (screen.get_width() // 2 - start_text.get_width() // 2, 400))
 
-        grav_text = self.font_option.render(f"< Gravity: {self.gravity_val:.3f} >", True, WHITE)
+        grav_text = self.font_option.render(f"< Gravity: {self.gravity:.3f} >", True, WHITE)
         screen.blit(grav_text, (screen.get_width() // 2 - grav_text.get_width() // 2, 500))
 
-        diff_text = self.font_option.render(f"^ Difficulty: {self.difficulty_val} v", True, WHITE)
+        diff_text = self.font_option.render(f"^ Difficulty: {self.difficulty} v", True, WHITE)
         screen.blit(diff_text, (screen.get_width() // 2 - diff_text.get_width() // 2, 550))
 
         editor_text = self.font_option.render("Press E for Terrain Editor", True, YELLOW)
@@ -97,18 +158,18 @@ class Menu:
                     return "EDITOR"
                 elif event.key == pygame.K_LEFT:
                     if event.mod & pygame.KMOD_SHIFT:
-                        self.gravity_val = max(1, self.gravity_val - 1)
+                        self.gravity = max(1, self.gravity - 1)
                     else:
-                        self.gravity_val = max(1, self.gravity_val - 0.1)
+                        self.gravity = max(1, self.gravity - 0.1)
                 elif event.key == pygame.K_RIGHT:
                     if event.mod & pygame.KMOD_SHIFT:
-                        self.gravity_val = min(10, self.gravity_val + 1)
+                        self.gravity = min(10, self.gravity + 1)
                     else:
-                        self.gravity_val = min(10, self.gravity_val + 0.1)
+                        self.gravity = min(10, self.gravity + 0.1)
                 elif event.key == pygame.K_UP:
-                    self.difficulty_val = min(5, self.difficulty_val + 1)
+                    self.difficulty = min(5, self.difficulty + 1)
                 elif event.key == pygame.K_DOWN:
-                    self.difficulty_val = max(1, self.difficulty_val - 1)
+                    self.difficulty = max(1, self.difficulty - 1)
         return "MENU"
 
 

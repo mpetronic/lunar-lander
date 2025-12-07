@@ -249,6 +249,6 @@ class Terrain:
 
             if getattr(line, "is_pad", False):
                 # Draw thick pad
-                pygame.draw.line(screen, (67, 171, 89), p1, p2, 10)
+                pygame.draw.line(screen, (70, 150, 80), p1, p2, 5)
             else:
                 pygame.draw.line(screen, GRAY, p1, p2, 3)
