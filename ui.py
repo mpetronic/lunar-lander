@@ -1,13 +1,47 @@
 import pygame
-from utils import WHITE, RED, GREEN, YELLOW, ORANGE, app_config
+from utils import BLACK, WHITE, RED, GREEN, YELLOW, ORANGE, app_config
 
 
 class HUD:
     def __init__(self):
         self.font = pygame.font.SysFont("Arial", 16)
 
-    def draw(self, screen, velocity, fuel, max_fuel, altitude):
-        # velocity is a pymunk Vec2d
+    def _draw_fuel_gauge(self, screen, fuel, max_fuel):
+        bar_width = 100
+        bar_height = 20
+        x = screen.get_width() - bar_width - 10
+        y = 10
+
+        pygame.draw.rect(screen, (50, 50, 50), (x, y, bar_width, bar_height))
+
+        pct = max(0.0, min(1.0, fuel / max_fuel)) if max_fuel > 0 else 0
+        fill_width = int(pct * bar_width)
+        fill_color = GREEN
+        if pct < 0.2:
+            fill_color = RED
+        elif pct < 0.3:
+            fill_color = ORANGE
+
+        pygame.draw.rect(screen, fill_color, (x + 1, y + 1, fill_width - 2, bar_height - 2))
+        fuel_text = self.font.render(f"Fuel: {int(fuel)}", True, WHITE)
+        screen.blit(fuel_text, (x - 80, y))
+
+    def _draw_throttle_gauge(self, screen, throttle_pct):
+        bar_width = 20
+        bar_height = 100
+        x = 10
+        y = 70
+
+        pygame.draw.rect(screen, (50, 50, 50), (x, y, bar_width, bar_height))
+
+        pct = max(0.0, min(1.0, throttle_pct))
+        fill_height = int(pct * (bar_height - 2))
+        fill_color = GREEN
+        pygame.draw.rect(screen, fill_color, (x + 1, y + bar_height - fill_height - 1, bar_width - 2, fill_height))
+        throttle_text = self.font.render(f"Throttle: {int(throttle_pct * 100)}", True, WHITE)
+        screen.blit(throttle_text, (x, y + bar_height + 5))
+
+    def draw(self, screen, velocity, fuel, max_fuel, altitude, throttle_pct):
         vx = velocity.x
         vy = velocity.y
 
@@ -22,38 +56,11 @@ class HUD:
         vy_text = self.font.render(f"{v_dir:<2} {abs(vy):.1f} m/s ", True, vy_color)
         screen.blit(vy_text, (10, 30))
 
-        # Fuel Gauge
-        # Bar at top right
-        bar_width = 100
-        bar_height = 20
-        x = screen.get_width() - bar_width - 10
-        y = 10
-
-        # Background
-        pygame.draw.rect(screen, (50, 50, 50), (x, y, bar_width, bar_height))
-
-        # Fill
-        pct = max(0.0, min(1.0, fuel / max_fuel)) if max_fuel > 0 else 0
-        fill_width = int(pct * bar_width)
-        fill_color = GREEN
-        if pct < 0.2:
-            fill_color = RED
-        elif pct < 0.5:
-            fill_color = ORANGE
-
-        pygame.draw.rect(screen, fill_color, (x, y, fill_width, bar_height))
-
-        # Text
-        fuel_text = self.font.render(f"Fuel: {int(fuel)}", True, WHITE)
-        screen.blit(fuel_text, (x - 80, y))
-
-        # Altitude
-        # Pymunk Y is up, so altitude is just y.
-        # But maybe relative to terrain? User said "current y-position".
-        # Let's show raw Y for now, or Y relative to bottom (0).
-        # Pymunk 0 is bottom.
         alt_text = self.font.render(f"Alt: {int(altitude)}", True, WHITE)
         screen.blit(alt_text, (10, 50))
+
+        self._draw_fuel_gauge(screen, fuel, max_fuel)
+        self._draw_throttle_gauge(screen, throttle_pct)
 
 
 class Menu:

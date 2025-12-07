@@ -19,19 +19,11 @@ def to_pygame(p, height):
     return int(p.x), int(height - p.y)
 
 
-def init_physics(gravity):
-    physics_world = PhysicsWorld()
-    physics_world.set_gravity(gravity)
-    physics_world.crashed = False
-    physics_world.landed = False
-    return physics_world
-
-
 def start_game(gravity, difficulty):
-    physics_world = init_physics(gravity)
-    terrain = Terrain(physics_world.space, WIDTH, HEIGHT, difficulty)
-    lander = Lander(physics_world.space, pos=(WIDTH // 5, HEIGHT - 100), gravity=gravity)
-    return physics_world, terrain, lander
+    physics_space = PhysicsWorld(gravity)
+    terrain = Terrain(physics_space.space, WIDTH, HEIGHT, difficulty)
+    lander = Lander(physics_space.space, pos=(WIDTH // 5, HEIGHT - 100))
+    return physics_space, terrain, lander
 
 
 def main():
@@ -40,15 +32,15 @@ def main():
     pygame.display.set_caption("Lunar Lander")
     clock = pygame.time.Clock()
 
-    physics_world = None  # PhysicsWorld()
-    terrain = None  # Terrain(physics_world.space, WIDTH, HEIGHT)
-    lander = None  # Lander(physics_world.space, (100, 500))
+    physics_space = None
+    terrain = None
+    lander = None
     hud = HUD()
     menu = Menu()
     game_over_menu = GameOverMenu()
     editor = TerrainEditor(WIDTH, HEIGHT)
 
-    state = "MENU"  # MENU, GAME, CRASH_ANIMATION, GAME_OVER, EDITOR
+    state = "MENU"
     crash_timer = 0.0
     crash_fuel = 0.0
     crash_vel = pymunk.Vec2d(0, 0)
@@ -57,6 +49,7 @@ def main():
     mouse_origin_y = 0
 
     running = True
+
     while running:
         dt = 1.0 / FPS
 
@@ -69,7 +62,7 @@ def main():
             action = menu.handle_input(events)
             if action == "GAME":
                 state = "GAME"
-                physics_world, terrain, lander = start_game(menu.gravity_val, menu.difficulty_val)
+                physics_space, terrain, lander = start_game(menu.gravity_val, menu.difficulty_val)
                 mouse_origin_y = pygame.mouse.get_pos()[1]
             elif action == "EDITOR":
                 state = "EDITOR"
@@ -92,24 +85,25 @@ def main():
             keys = pygame.key.get_pressed()
 
             # Prevent thrust if space is still held from menu
-            if not hasattr(physics_world, "space_released"):
+            if not hasattr(physics_space, "space_released"):
                 if not keys[pygame.K_SPACE]:
-                    physics_world.space_released = True
+                    physics_space.space_released = True
 
-            if lander and getattr(physics_world, "space_released", False):
+            if lander and getattr(physics_space, "space_released", False):
                 lander.is_thrusting = False
 
                 # Mouse control
                 current_mouse_y = pygame.mouse.get_pos()[1]
                 # Up is negative in pygame, so origin - current gives positive for upward movement
                 mouse_delta = mouse_origin_y - current_mouse_y
-                throttle_pct = max(0.0, min(1.0, mouse_delta / 400.0))  # 400 pixels range
+                throttle_pct = max(0.0, min(1.0, mouse_delta / 200.0))  # 200 pixels range
 
                 if keys[pygame.K_SPACE] or keys[pygame.K_UP]:
                     throttle_pct = 1.0
 
                 if throttle_pct > 0:
                     lander.thrust(throttle_pct, dt)
+
                 if keys[pygame.K_LEFT]:
                     lander.rotate(1)
                 elif keys[pygame.K_RIGHT]:
@@ -123,10 +117,10 @@ def main():
                     state = "MENU"
 
             # Physics
-            physics_world.step(dt)
+            physics_space.step(dt)
 
             # Check game state
-            if physics_world.crashed:
+            if physics_space.crashed:
                 print("CRASHED!")
                 # Capture stats
                 crash_fuel = lander.fuel_remaining
@@ -134,16 +128,16 @@ def main():
                 crash_angle = lander.body.angle * (180.0 / 3.14159)  # Convert to degrees
 
                 lander.explode()
-                physics_world.crashed = False
+                physics_space.crashed = False
                 lander = None  # Disable control
                 state = "CRASH_ANIMATION"
                 crash_timer = 4.0
                 result_text = "CRASHED!"
 
-            elif physics_world.landed:
+            elif physics_space.landed:
                 lander.landed = True
                 print("Level Complete!")
-                physics_world.landed = False
+                physics_space.landed = False
                 state = "GAME_OVER"
                 result_text = "SUCCESSFUL LANDING!"
 
@@ -157,11 +151,19 @@ def main():
                 # HUD
                 vel = lander.get_velocity()
                 alt = lander.get_altitude()
+
                 # Ensure we pass the current fuel value
-                hud.draw(screen, vel, lander.fuel_remaining, lander.fuel_capacity, alt)
+                hud.draw(
+                    screen,
+                    vel,
+                    lander.fuel_remaining,
+                    lander.fuel_capacity,
+                    alt,
+                    lander.throttle_pct,
+                )
             else:
                 # Draw debris
-                for body in physics_world.space.bodies:
+                for body in physics_space.space.bodies:
                     if body.body_type == pymunk.Body.DYNAMIC:
                         for shape in body.shapes:
                             if isinstance(shape, pymunk.Poly):
@@ -173,7 +175,7 @@ def main():
 
         elif state == "CRASH_ANIMATION":
             # Step physics to animate debris
-            physics_world.step(dt)
+            physics_space.step(dt)
             crash_timer -= dt
 
             if crash_timer <= 0:
@@ -184,7 +186,7 @@ def main():
             terrain.draw(screen, HEIGHT)
 
             # Draw debris
-            for body in physics_world.space.bodies:
+            for body in physics_space.space.bodies:
                 if body.body_type == pymunk.Body.DYNAMIC:
                     for shape in body.shapes:
                         if isinstance(shape, pymunk.Poly):
@@ -204,7 +206,7 @@ def main():
                 lander.draw(screen, HEIGHT)
             else:
                 # Draw debris
-                for body in physics_world.space.bodies:
+                for body in physics_space.space.bodies:
                     if body.body_type == pymunk.Body.DYNAMIC:
                         for shape in body.shapes:
                             if isinstance(shape, pymunk.Poly):
@@ -228,7 +230,7 @@ def main():
             action = game_over_menu.handle_input(events)
             if action == "RESTART":
                 state = "GAME"
-                physics_world, terrain, lander = start_game(menu.gravity_val, menu.difficulty_val)
+                physics_space, terrain, lander = start_game(menu.gravity_val, menu.difficulty_val)
                 mouse_origin_y = pygame.mouse.get_pos()[1]
             elif action == "MENU":
                 state = "MENU"

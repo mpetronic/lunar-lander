@@ -1,3 +1,4 @@
+import math
 import pymunk
 import pygame
 import random
@@ -27,32 +28,47 @@ explosion_palette = [
     (40, 15, 10),  # almost black, perfect for smoke/fade-out]
 ]
 
+# G₀ = 9.80665 m/s² is used — even on the Moon — because Specific Impulse (Isp) is defined and
+# measured using Earth-standard gravity. This makes Isp a universal constant for a given engine in
+# vacuum, regardless of where you are (Earth, Moon, Mars, deep space).
+EARTH_G0 = 9.80665
+
 
 class Lander:
-    def __init__(self, space, pos, gravity):
+    def __init__(self, space, pos):
         self.space = space
         self.max_thrust = 45050
+        self.max_torque = self.max_thrust  # / 10.0
         self.dry_mass = 6853
         self.fuel_capacity = 8212
         self.fuel_remaining = self.fuel_capacity
         self.throttle_pct = 0.0
-        self.max_torque = 40.0
         self.damping_factor = 0.75
         self.is_thrusting = False
         self.specific_impulse = 305
-        self.gravity = gravity
 
         # Create body
-        self.body = pymunk.Body(
-            mass=self.dry_mass + self.fuel_remaining,
-            moment=pymunk.moment_for_box(self.dry_mass + self.fuel_remaining, (100, 100)),
-        )
+        total_mass = self.dry_mass + self.fuel_remaining
+        moment = 40000
+        self.body = pymunk.Body(mass=total_mass, moment=moment)
+
         self.body.position = pos
+        self.lander_size = (50, 50)
 
         # Footpads for collision detection. These must be placed such that they are aligned with the
-        # landing pads on the sprite image
-        self.foot_l = pymunk.Segment(self.body, (-50, -47), (-45, -47), radius=4)
-        self.foot_r = pymunk.Segment(self.body, (45, -47), (50, -47), radius=4)
+        # landing pads on the sprite image which should be at the bottom corners of the sprite
+        self.foot_l = pymunk.Segment(
+            self.body,
+            (-self.lander_size[0] / 2, -self.lander_size[1] / 2),
+            (-self.lander_size[0] / 2, -self.lander_size[1] / 2),
+            radius=0,
+        )
+        self.foot_r = pymunk.Segment(
+            self.body,
+            (self.lander_size[0] / 2, -self.lander_size[1] / 2),
+            (self.lander_size[0] / 2, -self.lander_size[1] / 2),
+            radius=0,
+        )
 
         self.shapes = [
             self.foot_l,
@@ -67,22 +83,53 @@ class Lander:
         self.is_thrusting = False
 
         self.image = pygame.image.load(Path(__file__).parent / "sprites" / "lander.png")
-        self.image = pygame.transform.scale(self.image, (100, 100))
+        self.image = pygame.transform.scale(self.image, self.lander_size)
         self.landed = False
 
+        print("mass={:.0f} moment={:.0f}".format(self.body.mass, self.body.moment))
+
     def thrust(self, throttle_pct, dt):
+        if self.fuel_remaining <= 0:
+            self.is_thrusting = False
+            return
+
         self.throttle_pct = throttle_pct
-        thrust_current = self.max_thrust * throttle_pct
-        if thrust_current > 0 and self.fuel_remaining > 0:
-            self.is_thrusting = True
-            # Apply impulse in local Y direction
-            force = (0, thrust_current)
-            self.body.apply_impulse_at_local_point(force, (0, 0))
-            propellant_flow_rate = thrust_current / (self.specific_impulse * self.gravity)
-            propellant_used = propellant_flow_rate * dt
-            self.fuel_remaining = max(0, self.fuel_remaining - propellant_used)
-            self.body.mass = self.dry_mass + self.fuel_remaining
-        return True
+        desired_thrust_magnitude = self.max_thrust * throttle_pct  # Newtons
+
+        # Direction: up in local coordinates (0, positive)
+        thrust_vector = pymunk.Vec2d(0, desired_thrust_magnitude) * dt
+
+        # Apply the full thrust impulse
+        self.body.apply_impulse_at_local_point(thrust_vector)
+
+        # Fuel burn
+        propellant_flow_rate = desired_thrust_magnitude / (self.specific_impulse * EARTH_G0)
+        propellant_used = propellant_flow_rate * dt
+        self.fuel_remaining = max(0, self.fuel_remaining - propellant_used)
+        self.body.mass = self.dry_mass + self.fuel_remaining
+
+        self.is_thrusting = True
+
+    def update_attitude_control(self, keys):
+        # RHC input – example from pygame keys or joystick
+        pitch_command = 0.0
+        if keys[pygame.K_w]:  # pitch up (nose up)
+            pitch_command = -1.0
+        if keys[pygame.K_s]:  # pitch down
+            pitch_command = +1.0
+
+        # Real Apollo rate command law
+        max_pitch_rate = 20.0  # degrees per second (Apollo max)
+        desired_rate_deg = pitch_command * max_pitch_rate
+
+        # Convert to radians
+        desired_rate_rad = math.radians(desired_rate_deg)
+
+        # Apply torque to achieve that rate (Pymunk does the rest)
+        torque_needed = (desired_rate_rad - self.body.angular_velocity) * self.body.moment * 8.0
+        # The "8.0" is a damping gain – tweak until it feels snappy but not twitchy
+
+        self.body.torque = torque_needed
 
     def rotate(self, direction):
         self.body.torque = self.max_torque * direction
@@ -110,13 +157,12 @@ class Lander:
 
         # Draw thrust flame
         if self.is_thrusting and self.fuel_remaining > 0 and not self.landed:
-            flame_y = -40
-            flame_x_offset = 5
-            flame_width = 5
-            # Flame point relative to body: bottom center is (0, -30)
-            # Flame goes down from there.
-            # Triangle: (-10, -30), (10, -30), (0, -30 - length)
-            flame_len = random.uniform(10, 50) * self.throttle_pct
+            flame_y = -25
+            flame_x_offset = 3
+            flame_width = 4
+            # Flame point relative to body bottom center and goes down from there with a minimum
+            # length then scales with throttle percentage.
+            flame_len = random.uniform(10, 50) * (0.1 + (0.9 * self.throttle_pct))
 
             f1 = self.body.local_to_world((flame_x_offset - flame_width, flame_y))
             f2 = self.body.local_to_world((flame_x_offset + flame_width, flame_y))
@@ -149,7 +195,7 @@ class Lander:
         # Create debris
         for n in range(1, 100):
             mass = 0.2
-            s = int(n / 8.0) + 1
+            s = int(n / 15.0) + 1
             size = (random.randint(s, s), random.randint(s, s))
             moment = pymunk.moment_for_box(mass, size)
             body = pymunk.Body(mass, moment)
