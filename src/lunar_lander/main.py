@@ -1,17 +1,14 @@
 import pygame
 import sys
-from physics import PhysicsWorld
-from lander import Lander
-from terrain import Terrain
-from ui import HUD, Menu, GameOverMenu
-from editor import TerrainEditor
-
+from .physics import PhysicsWorld
+from .lander import Lander
+from .terrain import Terrain
+from .ui import HUD, Menu, GameOverMenu
+from .editor import TerrainEditor
+from .utils import WHITE
 import pymunk
 
-WIDTH, HEIGHT = 1800, 900
-FPS = 120
-
-WHITE = (255, 255, 255)
+SCREEN_WIDTH, SCREEN_HEIGHT = 1800, 900
 
 
 def to_pygame(p, height):
@@ -21,15 +18,15 @@ def to_pygame(p, height):
 
 def start_game(gravity, difficulty):
     physics_space = PhysicsWorld(gravity)
-    terrain = Terrain(physics_space.space, WIDTH, HEIGHT, difficulty)
-    lander = Lander(physics_space.space, pos=(WIDTH // 5, HEIGHT - 100), starting_fuel=0.1)
+    terrain = Terrain(physics_space.space, SCREEN_WIDTH, SCREEN_HEIGHT, difficulty)
+    lander = Lander(physics_space.space, pos=(SCREEN_WIDTH // 5, SCREEN_HEIGHT - 100), starting_fuel=0.1)
     return physics_space, terrain, lander
 
 
 def main():
     pygame.mixer.pre_init(frequency=22050, size=-16, channels=2, buffer=512)
     pygame.init()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Lunar Lander")
     clock = pygame.time.Clock()
 
@@ -39,7 +36,7 @@ def main():
     hud = HUD()
     menu = Menu()
     game_over_menu = GameOverMenu()
-    editor = TerrainEditor(WIDTH, HEIGHT)
+    editor = TerrainEditor(SCREEN_WIDTH, SCREEN_HEIGHT)
 
     state = "MENU"
     crash_timer = 0.0
@@ -49,11 +46,12 @@ def main():
     result_text = ""
     mouse_origin_y = 0
     total_time = 0.0
+    fps = 30
 
     running = True
 
     while running:
-        dt = 1.0 / FPS
+        dt = 1.0 / fps
         total_time += dt
 
         events = pygame.event.get()
@@ -147,10 +145,10 @@ def main():
 
             # Render
             screen.fill((0, 0, 0))
-            terrain.draw(screen, HEIGHT)
+            terrain.draw(screen, SCREEN_HEIGHT)
 
             if lander:
-                lander.draw(screen, HEIGHT)
+                lander.draw(screen, SCREEN_HEIGHT)
 
                 # HUD
                 vel = lander.get_velocity()
@@ -175,7 +173,7 @@ def main():
                                 points = []
                                 for v in shape.get_vertices():
                                     p_world = body.local_to_world(v)
-                                    points.append(to_pygame(p_world, HEIGHT))
+                                    points.append(to_pygame(p_world, SCREEN_HEIGHT))
                                 pygame.draw.polygon(screen, WHITE, points, 2)
 
         elif state == "CRASH_ANIMATION":
@@ -188,7 +186,7 @@ def main():
 
             # Render
             screen.fill((0, 0, 0))
-            terrain.draw(screen, HEIGHT)
+            terrain.draw(screen, SCREEN_HEIGHT)
 
             # Draw debris
             for body in physics_space.space.bodies:
@@ -198,17 +196,17 @@ def main():
                             points = []
                             for v in shape.get_vertices():
                                 p_world = body.local_to_world(v)
-                                points.append(to_pygame(p_world, HEIGHT))
+                                points.append(to_pygame(p_world, SCREEN_HEIGHT))
                             pygame.draw.polygon(screen, shape.color, points, 0)
 
         elif state == "GAME_OVER":
             # Render game background (frozen)
             # We need to render the game objects but not step physics
             screen.fill((0, 0, 0))
-            terrain.draw(screen, HEIGHT)
+            terrain.draw(screen, SCREEN_HEIGHT)
 
             if lander:
-                lander.draw(screen, HEIGHT)
+                lander.draw(screen, SCREEN_HEIGHT)
             else:
                 # Draw debris
                 for body in physics_space.space.bodies:
@@ -218,7 +216,7 @@ def main():
                                 points = []
                                 for v in shape.get_vertices():
                                     p_world = body.local_to_world(v)
-                                    points.append(to_pygame(p_world, HEIGHT))
+                                    points.append(to_pygame(p_world, SCREEN_HEIGHT))
                                 pygame.draw.polygon(screen, shape.color, points, 0)
 
             # Draw Game Over Menu
@@ -242,7 +240,7 @@ def main():
                 state = "MENU"
 
         pygame.display.flip()
-        clock.tick(FPS)
+        clock.tick(fps)
 
     pygame.quit()
     sys.exit()

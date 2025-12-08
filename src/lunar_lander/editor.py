@@ -1,7 +1,7 @@
 import pygame
 import json
 import math
-from ui import InputBox, WHITE, GREEN, RED
+from .ui import InputBox, WHITE, GREEN, RED
 
 
 class TerrainEditor:

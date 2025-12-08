@@ -1,5 +1,5 @@
 import pygame
-from utils import BLACK, WHITE, RED, GREEN, YELLOW, ORANGE, app_config, GRAVITY_MOON
+from .utils import BLACK, WHITE, RED, GREEN, YELLOW, ORANGE, app_config, GRAVITY_MOON
 
 
 class HUD:
