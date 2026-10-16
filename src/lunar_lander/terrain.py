@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pymunk
 import pygame
-from utils import to_pygame, GRAY, app_config
+from .utils import to_pygame, GRAY, app_config
 
 
 class Terrain:

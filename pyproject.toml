@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "lunar-lander"
+dynamic = ["version"]
+description = "A Lunar Lander game with physics"
+readme = "spec.md"
+requires-python = ">=3.8"
+license = "MIT"
+authors = [
+  { name = "User", email = "user@example.com" },
+]
+dependencies = [
+  "pygame",
+  "pymunk",
+]
+
+[project.scripts]
+lander = "lunar_lander.main:main"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/lunar_lander"]

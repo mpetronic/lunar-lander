@@ -3,7 +3,7 @@ import pymunk
 import pygame
 import random
 from pathlib import Path
-from utils import app_config
+from .utils import app_config
 
 explosion_palette = [
     (255, 200, 100),  # hot white core (still bright but reduced)
