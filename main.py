@@ -22,7 +22,24 @@ def to_pygame(p, height):
 def start_game(gravity, difficulty):
     physics_space = PhysicsWorld(gravity)
     terrain = Terrain(physics_space.space, WIDTH, HEIGHT, difficulty)
-    lander = Lander(physics_space.space, pos=(WIDTH // 5, HEIGHT - 100), starting_fuel=0.1)
+
+    # Scale starting fuel based on selected difficulty (1 = 100% full, down to 25% for diff 5)
+    difficulty_fuel_map = {
+        1: 1.0,   # 100% fuel (Difficulty 1)
+        2: 0.8,   # 80% fuel  (Difficulty 2)
+        3: 0.6,   # 60% fuel  (Difficulty 3)
+        4: 0.4,   # 40% fuel  (Difficulty 4)
+        5: 0.25,  # 25% fuel  (Difficulty 5)
+    }
+    starting_fuel = difficulty_fuel_map.get(
+        difficulty, max(0.2, 1.0 - (difficulty - 1) * 0.2)
+    )
+
+    lander = Lander(
+        physics_space.space,
+        pos=(WIDTH // 5, HEIGHT - 100),
+        starting_fuel=starting_fuel,
+    )
     return physics_space, terrain, lander
 
 
@@ -49,6 +66,7 @@ def main():
     result_text = ""
     mouse_origin_y = 0
     total_time = 0.0
+    throttle_trim = 0.0
 
     running = True
 
@@ -68,6 +86,7 @@ def main():
                 physics_space, terrain, lander = start_game(menu.gravity, menu.difficulty)
                 mouse_origin_y = pygame.mouse.get_pos()[1]
                 total_time = 0.0
+                throttle_trim = 0.0
             elif action == "EDITOR":
                 state = "EDITOR"
 
@@ -96,11 +115,12 @@ def main():
             if lander and getattr(physics_space, "space_released", False):
                 lander.is_thrusting = False
 
-                # Mouse control
+                # Mouse control with wheel trim
                 current_mouse_y = pygame.mouse.get_pos()[1]
                 # Up is negative in pygame, so origin - current gives positive for upward movement
                 mouse_delta = mouse_origin_y - current_mouse_y
-                throttle_pct = max(0.0, min(1.0, mouse_delta / 200.0))  # 200 pixels range
+                coarse_throttle = mouse_delta / 200.0  # 200 pixels range
+                throttle_pct = max(0.0, min(1.0, coarse_throttle + throttle_trim))
 
                 if keys[pygame.K_SPACE] or keys[pygame.K_UP]:
                     throttle_pct = 1.0
@@ -115,10 +135,17 @@ def main():
                 else:
                     lander.stop_rotation()
 
-            # Check for pause/menu
+            # Check for pause/menu and mouse wheel trim
             for event in events:
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     state = "MENU"
+                elif event.type == pygame.MOUSEWHEEL:
+                    # Fine-tune thrust: 3x more sensitive than raw mouse movement
+                    # Raw mouse movement is 1.0 / 200.0 per pixel = 0.005 (0.5% per pixel)
+                    # 3x more sensitive (finer increment) = 1.0 / (200.0 * 3.0) = ~0.001667 per notch (0.167% per notch)
+                    trim_step = 1.0 / (200.0 * 3.0)
+                    throttle_trim += event.y * trim_step
+                    throttle_trim = max(-1.0, min(1.0, throttle_trim))
 
             # Physics
             physics_space.step(dt)
@@ -156,7 +183,7 @@ def main():
                 vel = lander.get_velocity()
                 alt = lander.get_altitude()
 
-                # Ensure we pass the current fuel value
+                # Ensure we pass current velocity, fuel, alt, throttle, time, attitude angle, and trim
                 hud.draw(
                     screen,
                     vel,
@@ -165,6 +192,8 @@ def main():
                     alt,
                     lander.throttle_pct,
                     total_time,
+                    angle=lander.body.angle,
+                    trim_pct=throttle_trim,
                 )
             else:
                 # Draw debris
@@ -238,6 +267,7 @@ def main():
                 physics_space, terrain, lander = start_game(menu.gravity, menu.difficulty)
                 mouse_origin_y = pygame.mouse.get_pos()[1]
                 total_time = 0.0
+                throttle_trim = 0.0
             elif action == "MENU":
                 state = "MENU"
 

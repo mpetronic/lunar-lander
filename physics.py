@@ -36,7 +36,7 @@ class PhysicsWorld:
         # Check velocity
         vv = abs(body.velocity.y)
         vh = abs(body.velocity.x)
-        total_tilt_deg = math.degrees(body.angle)
+        total_tilt_deg = abs(math.degrees(body.angle))
 
         self.crashed = not self.doghouse_safe_landing(vv, vh, total_tilt_deg)
 
