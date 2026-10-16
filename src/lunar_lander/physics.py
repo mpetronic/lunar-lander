@@ -16,6 +16,8 @@ class PhysicsWorld:
 
         self.landed = False
         self.crashed = False
+        self.crash_reason = ""
+        self.crash_reasons = []
 
     def handle_collision(self, arbiter, space, data):
         # Get shapes
@@ -38,12 +40,6 @@ class PhysicsWorld:
         vh = abs(body.velocity.x)
         total_tilt_deg = abs(math.degrees(body.angle))
 
-        self.crashed = not self.doghouse_safe_landing(vv, vh, total_tilt_deg)
-
-        if self.crashed:
-            print(f"CRASHED! vh={vh:.1f}, vv={vv:.1f}, angle={total_tilt_deg:.2f}")
-            return True
-
         # Check if terrain is pad
         is_pad = getattr(terrain, "is_pad", False)
         safe_position = False
@@ -59,17 +55,23 @@ class PhysicsWorld:
                 safe_position = True
             else:
                 print(
-                    "Missed pad bounds: Pad({pad_l:.1f}, {pad_r:.1f}) Lander({leg_l:.1f}, {leg_r:.1f})"
+                    f"Missed pad bounds: Pad({pad_l:.1f}, {pad_r:.1f}) Lander({leg_l:.1f}, {leg_r:.1f})"
                 )
 
-        if is_pad and safe_position:
+        reasons = self.get_crash_reasons(vv, vh, total_tilt_deg, is_pad, safe_position)
+
+        if not reasons and is_pad and safe_position:
             self.landed = True
+            self.crashed = False
+            self.crash_reason = ""
+            self.crash_reasons = []
             print("LANDED SAFE!")
         else:
             self.crashed = True
-            print(
-                f"CRASHED OFF PAD! vx={vh:.1f}, vy={vv:.1f}, angle={total_tilt_deg:.2f}, pad={is_pad}, pos={safe_position}"
-            )
+            self.landed = False
+            self.crash_reasons = reasons if reasons else ["Impact threshold exceeded"]
+            self.crash_reason = " • ".join(self.crash_reasons)
+            print(f"CRASHED! Reason: {self.crash_reason}")
 
         return True
 
@@ -79,27 +81,32 @@ class PhysicsWorld:
     def step(self, dt):
         self.space.step(dt)
 
-    def doghouse_safe_landing(self, vv_ms, vh_ms, total_tilt_deg):
-        """
-        Full Apollo LM safe landing check (Doghouse + Tilt).
-        vv_ms = abs(lander.body.velocity.y)  # downward
-        vh_ms = abs(lander.body.velocity.x)  # horizontal
-        total_tilt_deg = math.degrees(math.atan2(  # or from pitch/roll
-            math.sqrt(body_pitch_rad**2 + body_roll_rad**2), 1))
-        """
-        # Velocity Doghouse (unchanged)
-        if vv_ms > 3.05 or vh_ms > 1.22:
-            print(f"vv_ms ({vv_ms}) > 3.05 or vh_ms ({vh_ms}) > 1.22")
-            return False
-        if vv_ms <= 2.13:
-            max_vh = 1.22
-        else:  # Linear to 0 at 3.05 m/s
+    def get_crash_reasons(self, vv_ms, vh_ms, total_tilt_deg, is_pad, safe_position):
+        """Evaluate touchdown parameters and return list of specific failure reasons."""
+        reasons = []
+        if vv_ms > 3.05:
+            reasons.append(f"Excessive vertical sink rate ({vv_ms:.1f} m/s > 3.0 m/s max)")
+        if vh_ms > 1.22:
+            reasons.append(f"Excessive horizontal speed ({vh_ms:.1f} m/s > 1.2 m/s max)")
+        elif vv_ms > 2.13 and vv_ms <= 3.05:
             max_vh = (4.0 / 3.0) * (3.05 - vv_ms)
-        if vh_ms > max_vh:
-            print(f"vh_ms ({vh_ms}) > max_vh ({max_vh})")
-            return False
-        # Tilt limit
+            if vh_ms > max_vh:
+                reasons.append(
+                    f"Velocity envelope exceeded (H: {vh_ms:.1f} m/s exceeds safe limit for V: {vv_ms:.1f} m/s)"
+                )
         if total_tilt_deg > 12.0:
-            print(f"total_tilt_deg ({total_tilt_deg}) > 12.0")
-            return False
-        return True
+            reasons.append(f"Excessive tilt angle ({total_tilt_deg:.1f}° > 12.0° max)")
+
+        if not is_pad:
+            reasons.append("Touchdown on rough terrain (Missed landing pad)")
+        elif not safe_position:
+            reasons.append("Landed off pad edge (Footpad outside pad bounds)")
+
+        return reasons
+
+    def doghouse_safe_landing(self, vv_ms, vh_ms, total_tilt_deg):
+        """Full Apollo LM safe landing check (Doghouse + Tilt)."""
+        reasons = self.get_crash_reasons(
+            vv_ms, vh_ms, total_tilt_deg, is_pad=True, safe_position=True
+        )
+        return len(reasons) == 0

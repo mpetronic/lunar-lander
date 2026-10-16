@@ -206,49 +206,55 @@ class Terrain:
             self.space.add(segment)
             self.lines.append(segment)
 
-    def draw(self, screen, height):
+    def draw(self, screen, height, camera=None):
         # Draw stars first
         for star in self.stars:
             color = (star["b"], star["b"], star["b"])
-            pygame.draw.circle(screen, color, (star["x"], star["y"]), star["r"])
-
-        # Create a polygon for the ground
-        # Points: (0, 0), all terrain points, (width, 0)
-        # Note: Pygame coordinates have (0,0) at top-left.
-        # Our terrain points are in Pymunk coordinates (y up).
-        # We need to convert them.
-
-        poly_points = []
-        # Start at bottom-left
-        poly_points.append((0, height))
-
-        # Add all terrain points
-        # We can iterate through lines to get points in order
-        # lines[0].a is the first point
-        # lines[i].b is the next point
+            if camera and camera.zoom > 1.0:
+                # Gentle parallax for depth
+                star_sx = int((star["x"] - camera.cx * 0.15) % screen.get_width())
+                star_sy = int((star["y"] - camera.cy * 0.15) % height)
+                pygame.draw.circle(screen, color, (star_sx, star_sy), star["r"])
+            else:
+                pygame.draw.circle(screen, color, (star["x"], star["y"]), star["r"])
 
         if not self.lines:
             return
 
+        conv = camera.to_screen if camera else (lambda p: to_pygame(p, height))
+
+        poly_points = []
+        if camera:
+            bottom_left = (camera.to_screen((0, 0))[0] - 100, screen.get_height() + 100)
+            bottom_right = (camera.to_screen((self.width, 0))[0] + 100, screen.get_height() + 100)
+        else:
+            bottom_left = (0, height)
+            bottom_right = (self.width, height)
+
+        poly_points.append(bottom_left)
+
         first_pt = self.lines[0].a
-        poly_points.append(to_pygame(first_pt, height))
+        poly_points.append(conv(first_pt))
 
         for line in self.lines:
-            poly_points.append(to_pygame(line.b, height))
+            poly_points.append(conv(line.b))
 
-        # End at bottom-right
-        poly_points.append((self.width, height))
+        poly_points.append(bottom_right)
 
         # Draw filled polygon
         pygame.draw.polygon(screen, (50, 50, 50), poly_points)
 
-        # Draw surface lines
+        # Draw surface lines with zoom-scaled thickness
+        zoom_val = camera.zoom if camera else 1.0
+        pad_width = max(3, int(5 * zoom_val))
+        surf_width = max(2, int(3 * zoom_val))
+
         for line in self.lines:
-            p1 = to_pygame(line.a, height)
-            p2 = to_pygame(line.b, height)
+            p1 = conv(line.a)
+            p2 = conv(line.b)
 
             if getattr(line, "is_pad", False):
-                # Draw thick pad
-                pygame.draw.line(screen, (70, 150, 80), p1, p2, 5)
+                # Draw thick landing pad
+                pygame.draw.line(screen, (70, 150, 80), p1, p2, pad_width)
             else:
-                pygame.draw.line(screen, GRAY, p1, p2, 3)
+                pygame.draw.line(screen, GRAY, p1, p2, surf_width)

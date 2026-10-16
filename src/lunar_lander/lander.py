@@ -38,12 +38,15 @@ class Lander:
     def __init__(self, space, pos, starting_fuel=1.0):
         self.space = space
         self.max_thrust = 45050
-        self.max_torque = self.max_thrust
+        # Reduced tilt control torque to prevent twitchy attitude control and overshooting zero attitude.
+        # Reduced from 45050 N·m (which was equal to full main engine thrust) to 12000 N·m.
+        self.max_torque = 12000
         self.dry_mass = 6853
         self.fuel_capacity = 8212
         self.fuel_remaining = self.fuel_capacity * starting_fuel
         self.throttle_pct = 0.0
-        self.damping_factor = 0.75
+        # Crisp damping when keys are released so rotation stops without creeping drift
+        self.damping_factor = 0.65
         self.is_thrusting = False
         self.specific_impulse = 305
 
@@ -82,8 +85,9 @@ class Lander:
         self.space.add(self.body, *self.landing_pads)
         self.is_thrusting = False
 
-        self.image = pygame.image.load(Path(__file__).parent / "sprites" / "lander.png")
-        self.image = pygame.transform.scale(self.image, lander_size)
+        self.base_size = lander_size
+        self.base_image = pygame.image.load(Path(__file__).parent / "sprites" / "lander.png")
+        self.image = pygame.transform.scale(self.base_image, lander_size)
         self.landed = False
 
         print("mass={:.0f} moment={:.0f}".format(self.body.mass, self.body.moment))
@@ -131,29 +135,36 @@ class Lander:
 
         self.body.torque = torque_needed
 
-    def rotate(self, direction):
-        self.body.torque = self.max_torque * direction
+    def rotate(self, direction, scale=1.0):
+        self.body.torque = self.max_torque * direction * scale
 
     def stop_rotation(self):
         self.body.torque = 0
         self.body.angular_velocity *= self.damping_factor
+        if abs(self.body.angular_velocity) < 0.001:
+            self.body.angular_velocity = 0.0
 
-    def draw(self, screen, height):
-        # Convert pymunk coordinates to pygame
+    def draw(self, screen, height, camera=None):
         def to_pygame(p):
             return int(p.x), int(height - p.y)
 
-        lander_center_pygame = to_pygame(self.body.position)
-        rotated_image = pygame.transform.rotate(self.image, self.body.angle * 180 / 3.14159)
+        conv = camera.to_screen if camera else to_pygame
+        zoom = camera.zoom if camera else 1.0
+
+        lander_center_pygame = conv(self.body.position)
+        scaled_w = max(10, int(self.base_size[0] * zoom))
+        scaled_h = max(10, int(self.base_size[1] * zoom))
+        scaled_image = pygame.transform.scale(self.base_image, (scaled_w, scaled_h))
+        rotated_image = pygame.transform.rotate(scaled_image, self.body.angle * 180 / 3.14159)
         image_rect = rotated_image.get_rect(center=lander_center_pygame)
         screen.blit(rotated_image, image_rect)
 
         # Draw pads
         if app_config.debug:
             for shape in [self.body.left_foot, self.body.right_foot]:
-                p1 = to_pygame(self.body.local_to_world(shape.a))
-                p2 = to_pygame(self.body.local_to_world(shape.b))
-                pygame.draw.line(screen, (255, 255, 255), p1, p2, 2)
+                p1 = conv(self.body.local_to_world(shape.a))
+                p2 = conv(self.body.local_to_world(shape.b))
+                pygame.draw.line(screen, (255, 255, 255), p1, p2, max(2, int(2 * zoom)))
 
         # Draw thrust flame
         if self.is_thrusting and self.fuel_remaining > 0 and not self.landed:
@@ -168,7 +179,7 @@ class Lander:
             f2 = self.body.local_to_world((flame_x_offset + flame_width, flame_y))
             f3 = self.body.local_to_world((flame_x_offset, flame_y - flame_len))
 
-            points = [to_pygame(f1), to_pygame(f2), to_pygame(f3)]
+            points = [conv(f1), conv(f2), conv(f3)]
             pygame.draw.polygon(screen, (255, 165, 0), points)  # Orange
 
             # Inner flame
@@ -177,16 +188,15 @@ class Lander:
             f2_i = self.body.local_to_world((flame_x_offset + flame_width, flame_y))
             f3_i = self.body.local_to_world((flame_x_offset, flame_y - flame_len_inner))
 
-            points_i = [to_pygame(f1_i), to_pygame(f2_i), to_pygame(f3_i)]
+            points_i = [conv(f1_i), conv(f2_i), conv(f3_i)]
             pygame.draw.polygon(screen, (255, 255, 0), points_i)  # Yellow
 
     def get_velocity(self):
         return self.body.velocity
 
     def get_altitude(self):
-        # Feet are at local y = -50
-        # Transform (0, -50) to world
-        feet_pos = self.body.local_to_world((0, -50))
+        # Feet are at local y = -25 (lander_size is 50x50, centered at 0,0)
+        feet_pos = self.body.local_to_world((0, -25))
         return feet_pos.y
 
     def explode(self):

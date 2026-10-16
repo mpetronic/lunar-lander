@@ -129,6 +129,7 @@ class HUD:
         total_time,
         angle=0.0,
         trim_pct=0.0,
+        zoom=1.0,
     ):
         """
         Draw unified avionics instrument panel at top middle of the screen.
@@ -514,7 +515,14 @@ class HUD:
         secs = int(total_time % 60)
         met_str = f"T+ {hours:02d}:{minutes:02d}:{secs:02d}"
         panel_surf.blit(
-            self.font_badge.render(met_str, True, (120, 145, 175)), (c_x + 130, row4_y + 2)
+            self.font_badge.render(met_str, True, (120, 145, 175)), (c_x + 115, row4_y + 2)
+        )
+
+        # Camera Zoom badge
+        zoom_text = f"CAM {zoom:.1f}x"
+        zoom_col = (100, 220, 140) if zoom >= 2.5 else (100, 200, 255) if zoom >= 1.4 else (130, 145, 165)
+        panel_surf.blit(
+            self.font_badge.render(zoom_text, True, zoom_col), (c_x + 205, row4_y + 2)
         )
 
         # Divider between center gauges and right vertical thrust gauge
@@ -683,62 +691,113 @@ class InputBox:
 
 class GameOverMenu:
     def __init__(self):
-        self.font = pygame.font.SysFont("Arial", 36)
-        self.small_font = pygame.font.SysFont("Arial", 24)
+        self.title_font = pygame.font.SysFont("Arial", 28, bold=True)
+        self.header_font = pygame.font.SysFont("Arial", 20, bold=True)
+        self.reason_font = pygame.font.SysFont("Arial", 18, bold=True)
+        self.small_font = pygame.font.SysFont("Arial", 16)
+        self.val_font = pygame.font.SysFont("Arial", 18, bold=True)
 
     def draw(self, screen, result_text, stats=None):
-        # Draw semi-transparent background?
-        # Just draw text over game
+        is_crash = result_text == "CRASHED!"
 
-        text = self.font.render(result_text, True, WHITE)
-        screen.blit(
-            text, (screen.get_width() // 2 - text.get_width() // 2, screen.get_height() // 2 - 100)
+        reasons_list = []
+        if is_crash and stats:
+            if "reasons" in stats and stats["reasons"]:
+                reasons_list = stats["reasons"]
+            elif "reason" in stats and stats["reason"]:
+                reasons_list = stats["reason"].split(" • ")
+
+        # Calculate dynamic panel height
+        panel_w = 720
+        base_h = 210
+        extra_h = len(reasons_list) * 26 if reasons_list else 0
+        panel_h = base_h + extra_h
+
+        panel_x = (screen.get_width() - panel_w) // 2
+        panel_y = (screen.get_height() - panel_h) // 2
+
+        overlay = pygame.Surface((panel_w, panel_h), pygame.SRCALPHA)
+        bg_col = (20, 10, 15, 235) if is_crash else (10, 22, 16, 235)
+        border_col = (245, 75, 75) if is_crash else (75, 215, 120)
+        overlay.fill(bg_col)
+        pygame.draw.rect(
+            overlay, border_col, (0, 0, panel_w, panel_h), width=2, border_radius=10
         )
 
+        # Header Title
+        title_str = (
+            "MISSION FAILED — LANDER DESTROYED" if is_crash else "TOUCHDOWN CONFIRMED!"
+        )
+        title_surf = self.title_font.render(title_str, True, border_col)
+        overlay.blit(title_surf, (panel_w // 2 - title_surf.get_width() // 2, 18))
+
+        curr_y = 62
+
+        # Crash reasons section
+        if is_crash and reasons_list:
+            lbl_surf = self.header_font.render("CAUSE OF CRASH:", True, (255, 185, 80))
+            overlay.blit(lbl_surf, (35, curr_y))
+            curr_y += 26
+            for r in reasons_list:
+                bullet_surf = self.reason_font.render(f"•  {r}", True, (255, 115, 115))
+                overlay.blit(bullet_surf, (45, curr_y))
+                curr_y += 24
+            curr_y += 6
+            pygame.draw.line(overlay, (70, 35, 42), (35, curr_y), (panel_w - 35, curr_y), 1)
+            curr_y += 10
+        elif is_crash:
+            lbl_surf = self.reason_font.render(
+                "CAUSE: Impact safety thresholds exceeded", True, (255, 115, 115)
+            )
+            overlay.blit(lbl_surf, (panel_w // 2 - lbl_surf.get_width() // 2, curr_y))
+            curr_y += 32
+
+        # Telemetry stats row
         if stats:
-            # stats = {'fuel': float, 'vx': float, 'vy': float, 'angle': float}
-            stats_text1 = self.small_font.render(f"Fuel: {int(stats['fuel'])}", True, WHITE)
-            stats_text2 = self.small_font.render(
-                f"Impact Vel: H {stats['vx']:.1f} m/s, V {stats['vy']:.1f} m/s", True, WHITE
+            col_w = (panel_w - 70) // 3
+            # Col 1: Vertical Speed
+            vv = abs(stats.get("vy", 0.0))
+            vv_col = (100, 230, 140) if vv <= 3.05 else (255, 90, 90)
+            overlay.blit(
+                self.small_font.render("TOUCHDOWN V-VEL", True, (150, 165, 185)), (35, curr_y)
             )
-            stats_text3 = self.small_font.render(f"Angle: {stats['angle']:.1f} deg", True, WHITE)
+            overlay.blit(self.val_font.render(f"{vv:.1f} m/s", True, vv_col), (35, curr_y + 18))
 
-            screen.blit(
-                stats_text1,
-                (
-                    screen.get_width() // 2 - stats_text1.get_width() // 2,
-                    screen.get_height() // 2 - 40,
-                ),
+            # Col 2: Horizontal Speed
+            vh = abs(stats.get("vx", 0.0))
+            vh_col = (100, 230, 140) if vh <= 1.22 else (255, 90, 90)
+            overlay.blit(
+                self.small_font.render("TOUCHDOWN H-VEL", True, (150, 165, 185)),
+                (35 + col_w, curr_y),
             )
-            screen.blit(
-                stats_text2,
-                (
-                    screen.get_width() // 2 - stats_text2.get_width() // 2,
-                    screen.get_height() // 2 - 10,
-                ),
-            )
-            screen.blit(
-                stats_text3,
-                (
-                    screen.get_width() // 2 - stats_text3.get_width() // 2,
-                    screen.get_height() // 2 + 20,
-                ),
+            overlay.blit(
+                self.val_font.render(f"{vh:.1f} m/s", True, vh_col),
+                (35 + col_w, curr_y + 18),
             )
 
-        restart_text = self.small_font.render("Press SPACE to Play Again", True, WHITE)
-        screen.blit(
-            restart_text,
-            (
-                screen.get_width() // 2 - restart_text.get_width() // 2,
-                screen.get_height() // 2 + 60,
-            ),
-        )
+            # Col 3: Attitude Tilt
+            tilt = abs(stats.get("angle", 0.0))
+            tilt_col = (100, 230, 140) if tilt <= 12.0 else (255, 90, 90)
+            overlay.blit(
+                self.small_font.render("IMPACT TILT", True, (150, 165, 185)),
+                (35 + col_w * 2, curr_y),
+            )
+            overlay.blit(
+                self.val_font.render(f"{tilt:.1f}°", True, tilt_col),
+                (35 + col_w * 2, curr_y + 18),
+            )
 
-        menu_text = self.small_font.render("Press ESC for Menu", True, WHITE)
-        screen.blit(
-            menu_text,
-            (screen.get_width() // 2 - menu_text.get_width() // 2, screen.get_height() // 2 + 90),
-        )
+            curr_y += 48
+
+        # Footer action buttons
+        pygame.draw.line(overlay, (50, 60, 75), (35, curr_y), (panel_w - 35, curr_y), 1)
+        curr_y += 12
+
+        actions_str = "Press  < SPACE >  to Fly Again    •    < ESC >  for Menu"
+        act_surf = self.small_font.render(actions_str, True, (200, 215, 235))
+        overlay.blit(act_surf, (panel_w // 2 - act_surf.get_width() // 2, curr_y))
+
+        screen.blit(overlay, (panel_x, panel_y))
 
     def handle_input(self, events):
         for event in events:
