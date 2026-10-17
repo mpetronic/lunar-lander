@@ -250,24 +250,6 @@ class TerrainEditor:
     def save_terrain(self, filename):
         # Ensure sorted
         self.points.sort(key=lambda p: p["x"])
-
-        # Convert to format expected by Terrain loader
-        # Loader expects list of objects.
-        # But wait, loader expects Pymunk coordinates (y up) or Pygame (y down)?
-        # Terrain.generate uses:
-        # p1 = (p1_data["x"], p1_data["y"])
-        # segment = pymunk.Segment(..., p1, p2, ...)
-        # Pymunk uses Y up. Pygame uses Y down.
-        # The existing terrain_data.json seems to have Y values like 200, 300.
-        # Screen height is 900.
-        # If Y is 200 in Pygame, it's near top.
-        # If Y is 200 in Pymunk, it's near bottom.
-        # Let's check terrain.py draw method.
-        # p1 = to_pygame(line.a, height) -> int(p.x), int(height - p.y)
-        # So Pymunk stores Y up.
-        # The editor works in Pygame coordinates (Y down).
-        # So we need to convert Y when saving.
-
         save_data = []
         for p in self.points:
             save_data.append(

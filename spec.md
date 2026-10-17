@@ -102,7 +102,7 @@
 
 ### B. Game Loop
 1.  **Generate Terrain** and place pads.
-2.  **Spawn Lander** (Top Left, 0 velocity).
+2.  **Spawn Lander** (Top Left, vertical velocity 0, horizontal velocity 10 m/s to the right).
 3.  **Physics Step** (Input $\rightarrow$ Forces $\rightarrow$ Pymunk Simulation).
 4.  **Render** (Draw lines, lander, HUD).
 5.  **Check State:**
@@ -115,3 +115,18 @@
 * **Access:** Accessible before game start or via Pause.
 * **Configurable Parameters:**
     * **Gravity:** Slider/Input to adjust gravitational acceleration (simulating Moon, Mars, Earth, etc.).
+
+---
+
+## 8. Audio & Sound Effects
+* **Sound Engine:** Managed by `SoundManager` via `pygame.mixer` at 44.1 kHz.
+* **Main Engine Thruster:**
+    * Deep, rumbly rocket engine audio loaded from `thrust.mp3` (optimized to a seamless ~4-second cross-faded loop for minimal disk footprint) with procedural synthesis fallback.
+    * Dynamic volume modulation based on current throttle percentage ($0.0 \rightarrow 1.0$).
+    * Automatically cuts off when throttle is zero or propellant is depleted.
+* **RCS Attitude Thrusters:**
+    * Bandpass pneumatic hiss/burst when firing attitude thrusters (Left/Right or A/D keys).
+* **Game State Audio:**
+    * **Pause/Resume:** Automatically pauses and resumes audio playback.
+    * **Crash:** Realistic explosion sound loaded from `explosion.mp3` with procedural fallback.
+    * **Touchdown:** Ascending 3-note melodic electronic chime on safe landing.

@@ -1,12 +1,14 @@
 import math
 import pygame
 import sys
+import signal
 from .physics import PhysicsWorld
 from .lander import Lander
 from .terrain import Terrain
 from .ui import HUD, Menu, GameOverMenu
 from .editor import TerrainEditor
 from .camera import Camera
+from .audio import SoundManager
 from .utils import WHITE
 import pymunk
 
@@ -56,12 +58,13 @@ def start_game(gravity, difficulty):
         physics_space.space,
         pos=(SCREEN_WIDTH // 5, SCREEN_HEIGHT - 100),
         starting_fuel=starting_fuel,
+        initial_velocity=(10.0, 0.0),
     )
     return physics_space, terrain, lander
 
 
-def main():
-    pygame.mixer.pre_init(frequency=22050, size=-16, channels=2, buffer=512)
+def _run():
+    pygame.mixer.pre_init(frequency=44100, size=-16, channels=2, buffer=512)
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Lunar Lander")
@@ -75,6 +78,7 @@ def main():
     game_over_menu = GameOverMenu()
     editor = TerrainEditor(SCREEN_WIDTH, SCREEN_HEIGHT)
     camera = Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
+    sound_manager = SoundManager()
 
     pause_font = pygame.font.SysFont("Arial", 36, bold=True)
     pause_sub_font = pygame.font.SysFont("Arial", 18)
@@ -109,6 +113,7 @@ def main():
             action = menu.handle_input(events)
             if action == "GAME":
                 state = "GAME"
+                sound_manager.stop_all()
                 physics_space, terrain, lander = start_game(menu.gravity, menu.difficulty)
                 mouse_origin_y = pygame.mouse.get_pos()[1]
                 total_time = 0.0
@@ -116,6 +121,7 @@ def main():
                 camera.reset()
             elif action == "EDITOR":
                 state = "EDITOR"
+                sound_manager.stop_all()
 
             screen.fill((0, 0, 0))  # Clear screen for menu
             menu.draw(screen)
@@ -165,13 +171,24 @@ def main():
                 else:
                     lander.stop_rotation()
 
+                sound_manager.update_thrust(
+                    throttle_pct if lander.is_thrusting else 0.0,
+                    lander.is_thrusting,
+                    lander.fuel_remaining,
+                )
+                sound_manager.update_rcs(lander.is_rotating, lander.fuel_remaining)
+            else:
+                sound_manager.stop_engines()
+
             # Check for pause/menu and mouse wheel trim
             for event in events:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         state = "MENU"
+                        sound_manager.stop_all()
                     elif event.key == pygame.K_p:
                         state = "PAUSED"
+                        sound_manager.pause()
                 elif event.type == pygame.MOUSEWHEEL:
                     # Fine-tune thrust: 3x more sensitive than raw mouse movement
                     # Raw mouse movement is 1.0 / 200.0 per pixel = 0.005 (0.5% per pixel)
@@ -189,6 +206,7 @@ def main():
 
             # Check game state
             if physics_space.crashed:
+                sound_manager.play_crash()
                 print("CRASHED!")
                 # Capture stats and detailed failure reasons
                 crash_fuel = lander.fuel_remaining
@@ -213,6 +231,7 @@ def main():
                 result_text = "CRASHED!"
 
             elif physics_space.landed:
+                sound_manager.play_landing()
                 lander.landed = True
                 print("Level Complete!")
                 physics_space.landed = False
@@ -262,8 +281,10 @@ def main():
                         state = "GAME"
                         # Re-sync mouse origin so throttle doesn't jump
                         mouse_origin_y = pygame.mouse.get_pos()[1]
+                        sound_manager.unpause()
                     elif event.key == pygame.K_ESCAPE:
                         state = "MENU"
+                        sound_manager.stop_all()
 
             # Render frozen game frame
             screen.fill((0, 0, 0))
@@ -407,6 +428,7 @@ def main():
             action = game_over_menu.handle_input(events)
             if action == "RESTART":
                 state = "GAME"
+                sound_manager.stop_all()
                 physics_space, terrain, lander = start_game(menu.gravity, menu.difficulty)
                 mouse_origin_y = pygame.mouse.get_pos()[1]
                 total_time = 0.0
@@ -414,12 +436,27 @@ def main():
                 camera.reset()
             elif action == "MENU":
                 state = "MENU"
+                sound_manager.stop_all()
 
         pygame.display.flip()
         clock.tick(fps)
 
-    pygame.quit()
-    sys.exit()
+
+def main():
+    try:
+        _run()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        try:
+            signal.signal(signal.SIGINT, signal.SIG_IGN)
+        except Exception:
+            pass
+        try:
+            pygame.quit()
+        except Exception:
+            pass
+    sys.exit(0)
 
 
 if __name__ == "__main__":

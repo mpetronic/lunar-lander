@@ -35,7 +35,7 @@ EARTH_G0 = 9.80665
 
 
 class Lander:
-    def __init__(self, space, pos, starting_fuel=1.0):
+    def __init__(self, space, pos, starting_fuel=1.0, initial_velocity=(10.0, 0.0)):
         self.space = space
         self.max_thrust = 45050
         # Reduced tilt control torque to prevent twitchy attitude control and overshooting zero attitude.
@@ -56,6 +56,7 @@ class Lander:
         self.body = pymunk.Body(mass=total_mass, moment=moment)
 
         self.body.position = pos
+        self.body.velocity = pymunk.Vec2d(initial_velocity[0], initial_velocity[1])
         lander_size = (50, 50)
 
         # Footpads for collision detection. These must be placed such that they are aligned with the
@@ -84,6 +85,7 @@ class Lander:
 
         self.space.add(self.body, *self.landing_pads)
         self.is_thrusting = False
+        self.is_rotating = False
 
         self.base_size = lander_size
         self.base_image = pygame.image.load(Path(__file__).parent / "sprites" / "lander.png")
@@ -136,10 +138,15 @@ class Lander:
         self.body.torque = torque_needed
 
     def rotate(self, direction, scale=1.0):
+        if self.fuel_remaining <= 0:
+            self.stop_rotation()
+            return
         self.body.torque = self.max_torque * direction * scale
+        self.is_rotating = (direction != 0)
 
     def stop_rotation(self):
         self.body.torque = 0
+        self.is_rotating = False
         self.body.angular_velocity *= self.damping_factor
         if abs(self.body.angular_velocity) < 0.001:
             self.body.angular_velocity = 0.0
